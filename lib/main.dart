@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'core/config.dart';
@@ -12,6 +13,11 @@ Future<void> main() async {
   // qualunque widget. Vedi core/config.dart per i dettagli.
   final config = await AppConfig.load();
   AppColors.applyBrandColor(config.primaryColorHex);
+
+  // Necessario perché ore_progetti_screen.dart formatta le date in
+  // italiano (es. "lunedì 17 settembre"); senza questa riga, DateFormat
+  // con locale 'it_IT' lancia un'eccezione a runtime.
+  await initializeDateFormatting('it_IT');
 
   runApp(const TimbratureApp());
 }

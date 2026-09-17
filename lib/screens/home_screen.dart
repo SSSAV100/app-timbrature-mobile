@@ -11,6 +11,7 @@ import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
+import 'ore_progetti_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,10 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // le timbrature accumulate offline (vedi SyncService).
     _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
       if (!result.contains(ConnectivityResult.none)) {
-        SyncService.instance.syncPendingPunches();
+        SyncService.instance.syncAll();
       }
     });
-    SyncService.instance.syncPendingPunches();
+    SyncService.instance.syncAll();
   }
 
   @override
@@ -100,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await LocalDbService.instance.savePunch(punch);
     setState(() => _lastPunchType = nextType);
 
-    await SyncService.instance.syncPendingPunches();
+    await SyncService.instance.syncAll();
 
     if (!mounted) return;
     setState(() => _isPunching = false);
@@ -176,7 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.work_outline,
                   iconColor: AppColors.primary,
                   label: 'Ore progetti',
-                  onTap: () => _openModulePlaceholder('Ore progetti'),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const OreProgettiScreen()),
+                  ),
                 ),
                 ModuleTile(
                   icon: Icons.description_outlined,

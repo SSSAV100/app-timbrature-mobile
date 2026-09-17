@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 import '../core/config.dart';
 import '../models/project.dart';
+import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart';
 import 'auth_service.dart';
 
@@ -29,8 +30,8 @@ class BcApiService {
     };
   }
 
-  /// Recupera i progetti/cantieri assegnati all'utente corrente.
-  /// Endpoint atteso: GET {customApiBaseUrl}/assignedProjects
+  /// Recupera i progetti/cantieri assegnati all'utente corrente, con i
+  /// relativi task/attività annidati.
   Future<List<Project>> fetchAssignedProjects() async {
     final headers = await _authHeaders();
     final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/assignedProjects');
@@ -57,6 +58,24 @@ class BcApiService {
       uri,
       headers: headers,
       body: jsonEncode(punch.toBcJson()),
+    );
+    _throwIfNotOk(response);
+  }
+
+  /// Invia una singola riga di ripartizione ore a Business Central.
+  /// Endpoint atteso: POST {customApiBaseUrl}/timeEntries
+  /// Business Central, una volta approvata la riga (vedi specifica
+  /// funzionale sezione 10), si occupa internamente di propagarla sia al
+  /// modulo Progetti sia a SwissSalary: l'app non parla mai direttamente
+  /// con SwissSalary.
+  Future<void> submitTimeEntry(TimeEntry entry) async {
+    final headers = await _authHeaders();
+    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/timeEntries');
+
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: jsonEncode(entry.toBcJson()),
     );
     _throwIfNotOk(response);
   }

@@ -1,15 +1,18 @@
-# App Timbrature — Modulo 1: Login + Timbratura
+# App Timbrature — Moduli 1-2: Login + Timbratura + Ore su progetti
 
-Questo è il primo modulo funzionante dell'app aziendale descritta nella
-Specifica Funzionale (v2.0): login aziendale, selezione del cantiere,
-timbratura entrata/uscita con coda offline e sincronizzazione automatica
-verso Business Central. Nessun middleware esterno: l'app parla solo con
-Business Central e con Firebase (per le notifiche push, non ancora
-attivate in questo modulo).
+Questa versione contiene i primi due moduli funzionanti dell'app aziendale
+descritta nella Specifica Funzionale (v2.0): login aziendale, selezione
+del cantiere, timbratura entrata/uscita, e ripartizione delle ore
+timbrate su progetti/task con controllo di coerenza — tutto con coda
+offline e sincronizzazione automatica verso Business Central. Nessun
+middleware esterno: l'app parla solo con Business Central e con Firebase
+(per le notifiche push, non ancora attivate in questa versione).
 
 **Cosa NON contiene ancora questa versione** (moduli successivi):
-ore su progetti/task, bollettino di intervento, ferie/assenze, note spese,
-notifiche push, sincronizzazione con SwissSalary.
+bollettino di intervento, ferie/assenze, note spese, notifiche push.
+La doppia scrittura verso SwissSalary avviene interamente lato Business
+Central dopo l'approvazione delle ore (vedi specifica, sezione 3.2):
+l'app non parla mai direttamente con SwissSalary.
 
 ---
 
@@ -20,6 +23,10 @@ notifiche push, sincronizzazione con SwissSalary.
 - Un account [GitHub](https://github.com) — già presente ✅
 - Un account [Codemagic](https://codemagic.io) (piano gratuito) — da creare quando saremo pronti a compilare per iOS
 - **Non serve un Mac**: iOS verrà compilato in cloud tramite Codemagic
+- **Nota versioni**: `flutter_appauth` richiede almeno Android 7.0 (API 24)
+  come `minSdk` (già confermato funzionante nella build Codemagic) e usa
+  un'API leggermente diversa a seconda della versione — questo progetto è
+  allineato alla versione 12.x (vedi `pubspec.yaml`).
 
 ## 2. Creare il progetto Flutter reale a partire da questi file
 
@@ -69,17 +76,28 @@ flutter analyze
    `azureClientId` con i valori copiati, e `redirectUri` con l'URI usato al
    passo 4. **Non serve toccare nessun file .dart**: è tutto in questo
    unico file JSON.
+9. **Solo Android**: apri `android/app/build.gradle.kts` (generato al punto
+   2) e, dentro `defaultConfig`, aggiungi lo schema del redirect URI
+   scelto al passo 4 (la parte prima di `://`, es. `msauth`):
+   ```kotlin
+   manifestPlaceholders["appAuthRedirectScheme"] = "msauth"
+   ```
+   Senza questo passaggio, il login su Android compila correttamente (una
+   build verde su Codemagic non lo segnala) ma fallisce silenziosamente a
+   runtime: il browser non riesce a "tornare" nell'app dopo il login. Su
+   iOS non serve alcun passaggio equivalente.
 
 ## 4. API attese da Business Central (da sviluppare lato AL)
 
-L'app si aspetta che la tua estensione AL esponga due API personalizzate.
+L'app si aspetta che la tua estensione AL esponga alcune API personalizzate.
 Questo è il "contratto" tra app e BC — puoi implementarlo con qualunque
 logica interna, purché rispetti input/output descritti qui.
 
 ### `GET /assignedProjects`
 
-Restituisce i progetti/cantieri assegnati all'utente autenticato (identificato
-dal token Azure AD ricevuto).
+Restituisce i progetti/cantieri assegnati all'utente autenticato
+(identificato dal token Azure AD ricevuto), con i relativi task/attività
+annidati (usati dal modulo "Ore su progetti").
 
 ```json
 {
@@ -87,18 +105,24 @@ dal token Azure AD ricevuto).
     {
       "id": "CANT-001",
       "description": "Cantiere Via Stazione 12",
-      "projectType": "Standard"
+      "projectType": "Standard",
+      "tasks": [
+        { "id": "T10", "description": "Scavo e fondazioni" },
+        { "id": "T20", "description": "Getto solette" }
+      ]
     },
     {
       "id": "SERV-045",
       "description": "Manutenzione impianto Cliente Rossi SA",
-      "projectType": "Service"
+      "projectType": "Service",
+      "tasks": []
     }
   ]
 }
 ```
 
 `projectType` è `"Standard"` o `"Service"` (vedi specifica, sezione 5).
+`tasks` può essere una lista vuota se il progetto non ha task specifici.
 
 ### `POST /timePunches`
 
@@ -120,12 +144,37 @@ Risposta attesa: `200 OK` (o `201 Created`) in caso di successo; qualunque
 altro codice viene interpretato dall'app come errore, e la timbratura resta
 in coda locale per un nuovo tentativo automatico.
 
+### `POST /timeEntries`
+
+Riceve una singola riga di ripartizione ore su progetto/task (modulo "Ore
+su progetti", vedi specifica funzionale sezione 6). Business Central, una
+volta approvata la riga, si occupa internamente di propagarla sia al
+modulo Progetti sia a SwissSalary — l'app non parla mai direttamente con
+SwissSalary (vedi specifica, sezione 3.2).
+
+Payload inviato dall'app:
+
+```json
+{
+  "projectId": "CANT-001",
+  "taskId": "T10",
+  "date": "2026-09-17",
+  "hours": 3.5,
+  "note": "Scavo lato nord"
+}
+```
+
+`taskId` e `note` sono opzionali (possono essere assenti dal payload se
+non valorizzati). Stessa logica di risposta e di coda offline di
+`/timePunches`.
+
 L'URL completo che l'app compone per queste chiamate è (vedi
 `lib/core/config.dart`):
 
 ```
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/assignedProjects
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timePunches
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timeEntries
 ```
 
 Aggiorna in `assets/client_config.json` i valori `bcEnvironment`,
@@ -220,9 +269,10 @@ parte Business Central/commerciale del progetto.
 
 Nell'ordine suggerito dalla roadmap della specifica funzionale:
 
-1. ✅ Login + Timbratura (questo modulo)
-2. Ore su progetti/task (ripartizione ore + doppia scrittura verso
-   SwissSalary)
+1. ✅ Login + Timbratura
+2. ✅ Ore su progetti/task (ripartizione ore, controllo di coerenza con le
+   timbrature; la doppia scrittura verso SwissSalary avviene lato BC dopo
+   l'approvazione, non è compito dell'app)
 3. Bollettino di intervento digitale (progetti Service, firma cliente)
 4. Ferie, Assenze (malattia/infortunio) e Note spese
 5. Notifiche push (Firebase)
