@@ -11,6 +11,7 @@ import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
+import 'bollettino_screen.dart';
 import 'ore_progetti_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -185,7 +186,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.description_outlined,
                   iconColor: const Color(0xFF0F6E56),
                   label: 'Bollettino',
-                  onTap: () => _openModulePlaceholder('Bollettino'),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BollettinoScreen()),
+                  ),
                 ),
                 ModuleTile(
                   icon: Icons.beach_access_outlined,

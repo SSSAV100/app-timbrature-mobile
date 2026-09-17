@@ -1,18 +1,18 @@
-# App Timbrature — Moduli 1-2: Login + Timbratura + Ore su progetti
+# App Timbrature — Moduli 1-3: Login, Timbratura, Ore su progetti, Bollettino
 
-Questa versione contiene i primi due moduli funzionanti dell'app aziendale
-descritta nella Specifica Funzionale (v2.0): login aziendale, selezione
-del cantiere, timbratura entrata/uscita, e ripartizione delle ore
-timbrate su progetti/task con controllo di coerenza — tutto con coda
-offline e sincronizzazione automatica verso Business Central. Nessun
+Questa versione contiene i primi tre moduli funzionanti dell'app aziendale
+descritta nella Specifica Funzionale (v2.0): login aziendale, timbratura
+entrata/uscita, ripartizione delle ore su progetti/task, e bollettino di
+intervento digitale con firma cliente per i progetti Service — tutto con
+coda offline e sincronizzazione automatica verso Business Central. Nessun
 middleware esterno: l'app parla solo con Business Central e con Firebase
 (per le notifiche push, non ancora attivate in questa versione).
 
 **Cosa NON contiene ancora questa versione** (moduli successivi):
-bollettino di intervento, ferie/assenze, note spese, notifiche push.
-La doppia scrittura verso SwissSalary avviene interamente lato Business
-Central dopo l'approvazione delle ore (vedi specifica, sezione 3.2):
-l'app non parla mai direttamente con SwissSalary.
+ferie/assenze, note spese, notifiche push. La doppia scrittura verso
+SwissSalary avviene interamente lato Business Central dopo l'approvazione
+delle ore (vedi specifica, sezione 3.2): l'app non parla mai direttamente
+con SwissSalary.
 
 ---
 
@@ -168,6 +168,38 @@ Payload inviato dall'app:
 non valorizzati). Stessa logica di risposta e di coda offline di
 `/timePunches`.
 
+### `POST /serviceReports`
+
+Riceve un bollettino di intervento firmato (progetti Service, vedi
+specifica funzionale sezione 7). Foto e firme arrivano come stringhe
+base64 nel payload: la tua estensione AL dovrà decodificarle e allegarle
+al progetto Service in BC (o salvarle come preferisci, es. tramite la
+funzionalità standard di allegato documenti).
+
+Payload inviato dall'app:
+
+```json
+{
+  "projectId": "SERV-045",
+  "clientContactName": "Mario Bianchi",
+  "startTime": "2026-09-17T08:00:00.000Z",
+  "endTime": "2026-09-17T10:30:00.000Z",
+  "description": "Sostituzione pompa di circolazione",
+  "materials": [
+    { "description": "Pompa circolazione 25-60", "quantity": 1 }
+  ],
+  "photosBase64": ["<stringa base64 jpg>", "<stringa base64 jpg>"],
+  "clientSignatureBase64": "<stringa base64 png>",
+  "technicianSignatureBase64": "<stringa base64 png, opzionale>"
+}
+```
+
+`materials` e `photosBase64` possono essere array vuoti. L'app genera già
+in locale un PDF del bollettino (con firma inclusa) che condivide
+immediatamente sul dispositivo del tecnico (email, WhatsApp, ecc. tramite
+il pannello di condivisione nativo): la copia ufficiale/di sistema resta
+comunque quella salvata in Business Central tramite questa API.
+
 L'URL completo che l'app compone per queste chiamate è (vedi
 `lib/core/config.dart`):
 
@@ -175,12 +207,31 @@ L'URL completo che l'app compone per queste chiamate è (vedi
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/assignedProjects
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timePunches
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timeEntries
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/serviceReports
 ```
 
 Aggiorna in `assets/client_config.json` i valori `bcEnvironment`,
 `customApiPublisher`, `customApiGroup`, `customApiVersion` in modo che
 coincidano con quelli scelti nella tua estensione AL (anche qui, nessun
 file .dart da modificare).
+
+### Permessi nativi richiesti (fotocamera e galleria)
+
+Il modulo Bollettino usa la fotocamera e la galleria del dispositivo
+(pacchetto `image_picker`). Su **iOS** è obbligatorio aggiungere due
+stringhe descrittive in `ios/Runner/Info.plist` (generato al punto 2),
+altrimenti l'app va in crash non appena l'utente tenta di scattare una
+foto o aprire la galleria:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Serve per allegare foto ai bollettini di intervento.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Serve per allegare foto esistenti ai bollettini di intervento.</string>
+```
+
+Su **Android**, `image_picker` gestisce automaticamente i permessi
+necessari: normalmente non serve alcuna modifica manuale.
 
 ## 5. Provare l'app in locale
 
@@ -273,6 +324,7 @@ Nell'ordine suggerito dalla roadmap della specifica funzionale:
 2. ✅ Ore su progetti/task (ripartizione ore, controllo di coerenza con le
    timbrature; la doppia scrittura verso SwissSalary avviene lato BC dopo
    l'approvazione, non è compito dell'app)
-3. Bollettino di intervento digitale (progetti Service, firma cliente)
+3. ✅ Bollettino di intervento digitale (progetti Service, firma cliente,
+   foto, generazione PDF condiviso immediatamente sul posto)
 4. Ferie, Assenze (malattia/infortunio) e Note spese
 5. Notifiche push (Firebase)

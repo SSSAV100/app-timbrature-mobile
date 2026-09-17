@@ -17,7 +17,7 @@ dependencies:
   # Login aziendale (Azure AD / Microsoft Entra ID) via OAuth2/OIDC standard.
   flutter_appauth: ^12.0.2
   # Conservazione sicura dei token di accesso sul dispositivo.
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^11.2.0
 
   # Chiamate HTTP verso le API di Business Central.
   http: ^1.2.2
@@ -32,6 +32,13 @@ dependencies:
 
   intl: ^0.19.0
   uuid: ^4.4.2
+
+  # Modulo Bollettino di intervento (progetti Service): firma cliente,
+  # foto, generazione PDF e condivisione immediata.
+  signature: ^6.3.0
+  image_picker: ^1.2.1
+  pdf: ^3.12.0
+  share_plus: ^13.2.1
 
 dev_dependencies:
   flutter_test:
