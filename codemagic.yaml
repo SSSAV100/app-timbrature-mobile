@@ -1,0 +1,42 @@
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # Nome dell'integrazione App Store Connect API Key creata in
+      # Codemagic (Team settings > Integrations > App Store Connect).
+      # Va creata una volta approvato l'Apple Developer Program.
+      app_store_connect: codemagic_api_key
+    environment:
+      ios_signing:
+        # "app_store" = distribuzione via TestFlight (niente UDID dispositivo
+        # da registrare, nessuna revisione Apple per i tester interni).
+        distribution_type: app_store
+        bundle_identifier: com.salarysolution.appTimbrature
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Imposta la firma del codice sul progetto Xcode
+        script: xcode-project use-profiles
+      - name: Installa le dipendenze Flutter
+        script: flutter packages pub get
+      - name: Analisi statica
+        script: flutter analyze
+      - name: Compila e firma l'IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Da creare in App Store Connect > TestFlight > Internal Testing,
+        # dopo la prima build: raggruppa i tester interni (es. te stesso)
+        # che ricevono la build in automatico senza revisione Apple.
+        # beta_groups:
+        #   - "Internal Testers"
