@@ -6,6 +6,8 @@ plugins {
 
 android {
     namespace = "com.salarysolution.app_timbrature"
+    // Vedi android/gradle.properties (flutter.compileSdkVersion) per il perché
+    // questo non è più lasciato al solo default della Flutter Gradle Plugin.
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

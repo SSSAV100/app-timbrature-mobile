@@ -15,7 +15,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Login aziendale (Azure AD / Microsoft Entra ID) via OAuth2/OIDC standard.
-  flutter_appauth: ^6.0.5
+  flutter_appauth: ^12.1.0
   # Conservazione sicura dei token di accesso sul dispositivo.
   flutter_secure_storage: ^9.2.2
 

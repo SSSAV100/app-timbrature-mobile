@@ -38,7 +38,7 @@ class AuthService {
         ),
       );
 
-      if (result == null || result.accessToken == null) return false;
+      if (result.accessToken == null) return false;
 
       await _persistTokens(
         accessToken: result.accessToken!,
@@ -84,10 +84,10 @@ class AuthService {
         ),
       );
 
-      if (result?.accessToken == null) return null;
+      if (result.accessToken == null) return null;
 
       await _persistTokens(
-        accessToken: result!.accessToken!,
+        accessToken: result.accessToken!,
         refreshToken: result.refreshToken ?? refreshToken,
         accessTokenExpirationDateTime: result.accessTokenExpirationDateTime,
       );
