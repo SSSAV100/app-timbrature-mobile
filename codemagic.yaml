@@ -1,4 +1,23 @@
 workflows:
+  android-workflow:
+    name: Android Workflow
+    max_build_duration: 30
+    environment:
+      flutter: stable
+    scripts:
+      - name: Installa le dipendenze Flutter
+        script: flutter packages pub get
+      - name: Analisi statica
+        script: flutter analyze
+      - name: Compila APK di debug
+        # Build di debug: usa la keystore di debug automatica, nessuna firma
+        # da configurare. Basta per verificare che la pipeline funzioni;
+        # per una vera distribuzione (release, firmata) si aggiunge poi
+        # android_signing e si passa a "flutter build apk --release".
+        script: flutter build apk --debug
+    artifacts:
+      - build/**/outputs/**/*.apk
+
   ios-workflow:
     name: iOS Workflow
     max_build_duration: 60
