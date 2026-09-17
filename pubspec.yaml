@@ -1,0 +1,56 @@
+name: app_timbrature
+description: >
+  App aziendale per timbrature, ore su progetti, ferie/assenze e note spese,
+  integrata direttamente con Microsoft Dynamics 365 Business Central
+  (nessun middleware esterno).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Login aziendale (Azure AD / Microsoft Entra ID) via OAuth2/OIDC standard.
+  flutter_appauth: ^6.0.5
+  # Conservazione sicura dei token di accesso sul dispositivo.
+  flutter_secure_storage: ^9.2.2
+
+  # Chiamate HTTP verso le API di Business Central.
+  http: ^1.2.2
+
+  # Database locale (coda offline di timbrature/ore in attesa di sync).
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Rilevamento dello stato di connessione, per la sincronizzazione automatica.
+  connectivity_plus: ^6.0.5
+
+  intl: ^0.19.0
+  uuid: ^4.4.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  # Genera le icone native (Android/iOS) da un'unica immagine sorgente per
+  # cliente. Vedi README.md, sezione "Onboarding di un nuovo cliente".
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/client_config.json
+    - assets/branding/
+
+# Configurazione di flutter_launcher_icons: al momento di generare l'icona
+# per un cliente, sostituire l'immagine sorgente in assets/branding/icon.png
+# e lanciare: flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/branding/icon.png"
