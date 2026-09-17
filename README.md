@@ -1,18 +1,21 @@
-# App Timbrature — Moduli 1-3: Login, Timbratura, Ore su progetti, Bollettino
+# App Timbrature — Moduli 1-4: tutti i moduli di contenuto completi
 
-Questa versione contiene i primi tre moduli funzionanti dell'app aziendale
-descritta nella Specifica Funzionale (v2.0): login aziendale, timbratura
-entrata/uscita, ripartizione delle ore su progetti/task, e bollettino di
-intervento digitale con firma cliente per i progetti Service — tutto con
+Questa versione contiene tutti e quattro i moduli "di contenuto" dell'app
+aziendale descritta nella Specifica Funzionale (v2.0): login aziendale,
+timbratura entrata/uscita, ripartizione delle ore su progetti/task,
+bollettino di intervento digitale con firma cliente per i progetti
+Service, ferie/assenze (malattia, infortunio) e note spese — tutto con
 coda offline e sincronizzazione automatica verso Business Central. Nessun
 middleware esterno: l'app parla solo con Business Central e con Firebase
 (per le notifiche push, non ancora attivate in questa versione).
 
-**Cosa NON contiene ancora questa versione** (moduli successivi):
-ferie/assenze, note spese, notifiche push. La doppia scrittura verso
-SwissSalary avviene interamente lato Business Central dopo l'approvazione
-delle ore (vedi specifica, sezione 3.2): l'app non parla mai direttamente
-con SwissSalary.
+**Cosa NON contiene ancora questa versione**: le notifiche push, e il
+flusso di approvazione responsabile/sostituto (che richiede la gestione
+dei ruoli utente, non ancora presente nell'app — per ora ogni richiesta
+viene semplicemente raccolta e inviata a Business Central). La doppia
+scrittura verso SwissSalary avviene interamente lato Business Central
+dopo l'approvazione delle ore (vedi specifica, sezione 3.2): l'app non
+parla mai direttamente con SwissSalary.
 
 ---
 
@@ -210,6 +213,80 @@ https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/serviceReports
 ```
 
+### `GET /vacationBalance`
+
+Restituisce il saldo ferie/permessi residuo dell'utente, espresso in ore
+(vedi specifica funzionale, sezione 8: tutto è gestito in ore, non in
+giorni).
+
+```json
+{ "balanceHours": 84.5 }
+```
+
+### `POST /absenceRequests`
+
+Riceve una richiesta di ferie o una segnalazione di assenza per malattia
+o infortunio (vedi specifica funzionale, sezione 8). `hoursPerDay` si
+applica a ciascun giorno del periodo `startDate`-`endDate` (che coincidono
+per un'assenza di un solo giorno). Nessun flusso di approvazione è
+gestito da questa versione dell'app: la richiesta viene raccolta e
+inviata così com'è.
+
+Payload inviato dall'app (esempio infortunio, con allegato):
+
+```json
+{
+  "type": "infortunio",
+  "startDate": "2026-09-17",
+  "endDate": "2026-09-19",
+  "hoursPerDay": 8,
+  "incidentDescription": "Caduta da scala durante montaggio ponteggio",
+  "incidentLocation": "Cantiere Via Stazione 12",
+  "attachmentBase64": "<stringa base64 jpg o pdf>",
+  "attachmentFileName": "referto_ps.jpg"
+}
+```
+
+`type` può essere `ferie`, `malattia` o `infortunio`. `note`,
+`incidentDescription`, `incidentLocation` e i campi `attachment*` sono
+opzionali per `ferie`; per `malattia` e `infortunio` l'app impone che
+l'utente alleghi un documento prima di inviare, quindi `attachmentBase64`
+sarà sempre presente in quei due casi.
+
+### `POST /expenseReports`
+
+Riceve una nota spesa, con ricevuta fotografata obbligatoria (vedi
+specifica funzionale, sezione 9). Importo sempre in franchi svizzeri
+(CHF).
+
+```json
+{
+  "date": "2026-09-17",
+  "category": "carburante",
+  "amountChf": 68.40,
+  "description": "Rifornimento furgone aziendale",
+  "projectId": "CANT-001",
+  "receiptBase64": "<stringa base64 jpg>",
+  "receiptFileName": "scontrino.jpg"
+}
+```
+
+`category` può essere: `vitto`, `trasporto`, `carburante`, `alloggio`,
+`materiali`, `altro`. `description` e `projectId` sono opzionali.
+
+L'URL completo che l'app compone per queste chiamate è (vedi
+`lib/core/config.dart`):
+
+```
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/assignedProjects
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timePunches
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timeEntries
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/serviceReports
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/vacationBalance
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/absenceRequests
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/expenseReports
+```
+
 Aggiorna in `assets/client_config.json` i valori `bcEnvironment`,
 `customApiPublisher`, `customApiGroup`, `customApiVersion` in modo che
 coincidano con quelli scelti nella tua estensione AL (anche qui, nessun
@@ -217,17 +294,18 @@ file .dart da modificare).
 
 ### Permessi nativi richiesti (fotocamera e galleria)
 
-Il modulo Bollettino usa la fotocamera e la galleria del dispositivo
-(pacchetto `image_picker`). Su **iOS** è obbligatorio aggiungere due
-stringhe descrittive in `ios/Runner/Info.plist` (generato al punto 2),
-altrimenti l'app va in crash non appena l'utente tenta di scattare una
-foto o aprire la galleria:
+I moduli Bollettino, Ferie/Assenze e Note spese usano la fotocamera e la
+galleria del dispositivo (pacchetto `image_picker`) per allegare foto,
+certificati e ricevute. Su **iOS** è obbligatorio aggiungere due stringhe
+descrittive in `ios/Runner/Info.plist` (generato al punto 2), altrimenti
+l'app va in crash non appena l'utente tenta di scattare una foto o aprire
+la galleria:
 
 ```xml
 <key>NSCameraUsageDescription</key>
-<string>Serve per allegare foto ai bollettini di intervento.</string>
+<string>Serve per allegare foto ai bollettini, certificati e ricevute.</string>
 <key>NSPhotoLibraryUsageDescription</key>
-<string>Serve per allegare foto esistenti ai bollettini di intervento.</string>
+<string>Serve per allegare foto esistenti ai bollettini, certificati e ricevute.</string>
 ```
 
 Su **Android**, `image_picker` gestisce automaticamente i permessi
@@ -326,5 +404,8 @@ Nell'ordine suggerito dalla roadmap della specifica funzionale:
    l'approvazione, non è compito dell'app)
 3. ✅ Bollettino di intervento digitale (progetti Service, firma cliente,
    foto, generazione PDF condiviso immediatamente sul posto)
-4. Ferie, Assenze (malattia/infortunio) e Note spese
+4. ✅ Ferie, Assenze (malattia/infortunio, gestite in ore) e Note spese
+   (in CHF, con ricevuta fotografata)
 5. Notifiche push (Firebase)
+6. Flusso di approvazione responsabile/sostituto (richiede la gestione
+   dei ruoli utente nell'app, non ancora presente)

@@ -1,15 +1,17 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/assenza_request.dart';
 import '../models/bollettino.dart';
+import '../models/nota_spesa.dart';
 import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart';
 
 /// Database locale (SQLite) usato esclusivamente come coda temporanea per
-/// le timbrature, le righe ore e i bollettini di intervento registrati
-/// offline, in attesa di sincronizzazione con Business Central. Non è
-/// un'anagrafica: BC resta l'unica fonte di verità (vedi specifica
-/// funzionale, sezione 3.2).
+/// tutto ciò che viene registrato offline (timbrature, righe ore,
+/// bollettini, ferie/assenze, note spese), in attesa di sincronizzazione
+/// con Business Central. Non è un'anagrafica: BC resta l'unica fonte di
+/// verità (vedi specifica funzionale, sezione 3.2).
 class LocalDbService {
   LocalDbService._internal();
   static final LocalDbService instance = LocalDbService._internal();
@@ -26,11 +28,13 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
         await _createBollettiniTable(db);
+        await _createAssenzeTable(db);
+        await _createNoteSpeseTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -38,6 +42,10 @@ class LocalDbService {
         }
         if (oldVersion < 3) {
           await _createBollettiniTable(db);
+        }
+        if (oldVersion < 4) {
+          await _createAssenzeTable(db);
+          await _createNoteSpeseTable(db);
         }
       },
     );
@@ -87,6 +95,40 @@ class LocalDbService {
         photo_paths_json TEXT NOT NULL,
         client_signature_path TEXT NOT NULL,
         technician_signature_path TEXT,
+        status TEXT NOT NULL,
+        error_message TEXT
+      )
+    ''');
+  }
+
+  Future<void> _createAssenzeTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE pending_assenze (
+        local_id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        hours_per_day REAL NOT NULL,
+        note TEXT,
+        incident_description TEXT,
+        incident_location TEXT,
+        attachment_path TEXT,
+        status TEXT NOT NULL,
+        error_message TEXT
+      )
+    ''');
+  }
+
+  Future<void> _createNoteSpeseTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE pending_note_spese (
+        local_id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        category TEXT NOT NULL,
+        amount_chf REAL NOT NULL,
+        description TEXT,
+        project_id TEXT,
+        receipt_path TEXT NOT NULL,
         status TEXT NOT NULL,
         error_message TEXT
       )
@@ -256,6 +298,100 @@ class LocalDbService {
     final db = await database;
     await db.update(
       'pending_bollettini',
+      {'status': SyncStatus.failed.name, 'error_message': errorMessage},
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  // --- Ferie e assenze ---
+
+  Future<void> saveAssenza(AssenzaRequest assenza) async {
+    final db = await database;
+    await db.insert(
+      'pending_assenze',
+      assenza.toDbMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<AssenzaRequest>> getPendingAssenze() async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_assenze',
+      where: 'status = ?',
+      whereArgs: [SyncStatus.pending.name],
+    );
+    return rows.map(AssenzaRequest.fromDbMap).toList();
+  }
+
+  Future<List<AssenzaRequest>> getAllAssenze() async {
+    final db = await database;
+    final rows = await db.query('pending_assenze', orderBy: 'start_date DESC');
+    return rows.map(AssenzaRequest.fromDbMap).toList();
+  }
+
+  Future<void> markAssenzaSynced(String localId) async {
+    final db = await database;
+    await db.update(
+      'pending_assenze',
+      {'status': SyncStatus.synced.name, 'error_message': null},
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  Future<void> markAssenzaFailed(String localId, String errorMessage) async {
+    final db = await database;
+    await db.update(
+      'pending_assenze',
+      {'status': SyncStatus.failed.name, 'error_message': errorMessage},
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  // --- Note spese ---
+
+  Future<void> saveNotaSpesa(NotaSpesa nota) async {
+    final db = await database;
+    await db.insert(
+      'pending_note_spese',
+      nota.toDbMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<NotaSpesa>> getPendingNoteSpese() async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_note_spese',
+      where: 'status = ?',
+      whereArgs: [SyncStatus.pending.name],
+    );
+    return rows.map(NotaSpesa.fromDbMap).toList();
+  }
+
+  Future<List<NotaSpesa>> getAllNoteSpese() async {
+    final db = await database;
+    final rows = await db.query('pending_note_spese', orderBy: 'date DESC');
+    return rows.map(NotaSpesa.fromDbMap).toList();
+  }
+
+  Future<void> markNotaSpesaSynced(String localId) async {
+    final db = await database;
+    await db.update(
+      'pending_note_spese',
+      {'status': SyncStatus.synced.name, 'error_message': null},
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  Future<void> markNotaSpesaFailed(String localId, String errorMessage) async {
+    final db = await database;
+    await db.update(
+      'pending_note_spese',
       {'status': SyncStatus.failed.name, 'error_message': errorMessage},
       where: 'local_id = ?',
       whereArgs: [localId],

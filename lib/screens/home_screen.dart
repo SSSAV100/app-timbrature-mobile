@@ -12,6 +12,8 @@ import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
 import 'bollettino_screen.dart';
+import 'ferie_assenze_screen.dart';
+import 'note_spese_screen.dart';
 import 'ore_progetti_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -117,14 +119,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openModulePlaceholder(String moduleName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Modulo "$moduleName": disponibile in un prossimo aggiornamento.'),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,13 +188,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.beach_access_outlined,
                   iconColor: const Color(0xFF993C1D),
                   label: 'Ferie/assenze',
-                  onTap: () => _openModulePlaceholder('Ferie/assenze'),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FerieAssenzeScreen()),
+                  ),
                 ),
                 ModuleTile(
                   icon: Icons.receipt_long_outlined,
                   iconColor: const Color(0xFF534AB7),
                   label: 'Note spese',
-                  onTap: () => _openModulePlaceholder('Note spese'),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NoteSpeseScreen()),
+                  ),
                 ),
               ],
             ),

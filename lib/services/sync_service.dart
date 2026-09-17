@@ -27,6 +27,8 @@ class SyncService {
       await _syncPendingPunches();
       await _syncPendingTimeEntries();
       await _syncPendingBollettini();
+      await _syncPendingAssenze();
+      await _syncPendingNoteSpese();
     } finally {
       _isSyncing = false;
     }
@@ -67,6 +69,32 @@ class SyncService {
       } catch (e) {
         await LocalDbService.instance.markBollettinoFailed(bollettino.localId, e.toString());
         // Si prosegue con gli altri bollettini in coda anche se uno fallisce.
+      }
+    }
+  }
+
+  Future<void> _syncPendingAssenze() async {
+    final pending = await LocalDbService.instance.getPendingAssenze();
+    for (final assenza in pending) {
+      try {
+        await BcApiService.instance.submitAssenza(assenza);
+        await LocalDbService.instance.markAssenzaSynced(assenza.localId);
+      } catch (e) {
+        await LocalDbService.instance.markAssenzaFailed(assenza.localId, e.toString());
+        // Si prosegue con le altre richieste in coda anche se una fallisce.
+      }
+    }
+  }
+
+  Future<void> _syncPendingNoteSpese() async {
+    final pending = await LocalDbService.instance.getPendingNoteSpese();
+    for (final nota in pending) {
+      try {
+        await BcApiService.instance.submitNotaSpesa(nota);
+        await LocalDbService.instance.markNotaSpesaSynced(nota.localId);
+      } catch (e) {
+        await LocalDbService.instance.markNotaSpesaFailed(nota.localId, e.toString());
+        // Si prosegue con le altre note spese in coda anche se una fallisce.
       }
     }
   }

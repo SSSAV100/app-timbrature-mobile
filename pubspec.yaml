@@ -17,7 +17,7 @@ dependencies:
   # Login aziendale (Azure AD / Microsoft Entra ID) via OAuth2/OIDC standard.
   flutter_appauth: ^12.0.2
   # Conservazione sicura dei token di accesso sul dispositivo.
-  flutter_secure_storage: ^11.2.0
+  flutter_secure_storage: ^11.0.0
 
   # Chiamate HTTP verso le API di Business Central.
   http: ^1.2.2
