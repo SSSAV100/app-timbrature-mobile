@@ -33,7 +33,10 @@ class ApprovalItem {
   factory ApprovalItem.fromJson(Map<String, dynamic> json) {
     final rawType = json['type'] as String? ?? 'oreCantiereStraordinario';
     return ApprovalItem(
-      id: json['id'] as String? ?? '',
+      // json['id'] è l'Entry No. (Integer) della pagina AL: un cast rigido
+      // a String romperebbe il parsing se BC lo serializza come numero
+      // JSON. toString() funziona sia con un numero sia con una stringa.
+      id: json['id']?.toString() ?? '',
       type: rawType == 'oreServiceProgetti'
           ? ApprovalType.oreServiceProgetti
           : ApprovalType.oreCantiereStraordinario,
