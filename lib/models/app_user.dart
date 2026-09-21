@@ -27,8 +27,15 @@ class AppUser {
   bool get canApprove => isResponsabileCantiere || isResponsabileProgetti;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
-    final rawRoles = (json['roles'] as List<dynamic>? ?? [])
-        .map((e) => e as String)
+    // "roles" arriva da BC come stringa con valori separati da virgola
+    // (es. "dipendente,responsabileCantiere"), non come array JSON: una
+    // pagina API di Business Central non può restituire un array di
+    // stringhe scalari (solo array di entità annidate), quindi lato AL è
+    // stato esposto così — vedi SS.CurrentUserApi.Page.al.
+    final rawRoles = (json['roles'] as String? ?? '')
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
         .toSet();
     return AppUser(
       employeeId: json['employeeId'] as String? ?? '',

@@ -242,14 +242,19 @@ class BcApiService {
 
   /// Invia la decisione (approvato/respinto) di un responsabile su un
   /// elemento in sospeso. Endpoint atteso:
-  /// POST {customApiBaseUrl}/pendingApprovals/{id}/decision
+  /// PATCH {customApiBaseUrl}/approvalDecisions({id})
+  /// (le API di Business Central non instradano un percorso custom come
+  /// POST .../pendingApprovals/{id}/decision: un'azione bound OData usa
+  /// sempre la forma entitySet(key)/NomeAzione, quindi lato AL è stato
+  /// esposto come aggiornamento diretto di una risorsa dedicata
+  /// "approvalDecisions" — vedi SS.ApprovalDecisionApi.Page.al).
   Future<void> submitApprovalDecision(ApprovalDecision decision) async {
     final headers = await _authHeaders();
     final uri = Uri.parse(
-      '${AppConfig.instance.customApiBaseUrl}/pendingApprovals/${decision.approvalItemId}/decision',
+      '${AppConfig.instance.customApiBaseUrl}/approvalDecisions(${decision.approvalItemId})',
     );
 
-    final response = await http.post(uri, headers: headers, body: jsonEncode(decision.toBcJson()));
+    final response = await http.patch(uri, headers: headers, body: jsonEncode(decision.toBcJson()));
     _throwIfNotOk(response);
   }
 
