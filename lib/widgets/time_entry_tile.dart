@@ -63,10 +63,24 @@ class TimeEntryTile extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            '${entry.hours.toStringAsFixed(2)} h',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
+          entry.hasDistinctBillableHours
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${entry.hoursWorked.toStringAsFixed(2)} h stipendio',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      '${entry.hoursBillable!.toStringAsFixed(2)} h fattura',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
+                )
+              : Text(
+                  '${entry.hoursWorked.toStringAsFixed(2)} h',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
           if (onDelete != null && entry.status == SyncStatus.pending) ...[
             const SizedBox(width: 4),
             IconButton(

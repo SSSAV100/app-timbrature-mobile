@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/theme.dart';
+import '../models/app_user.dart';
 import '../models/project.dart';
 import '../models/timesheet_entry.dart';
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
+import '../services/location_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
+import 'approvals_screen.dart';
 import 'bollettino_screen.dart';
 import 'ferie_assenze_screen.dart';
 import 'note_spese_screen.dart';
@@ -34,11 +37,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isPunching = false;
   String? _loadError;
 
+  AppUser? _currentUser;
+  int? _pendingApprovalsCount;
+
   @override
   void initState() {
     super.initState();
     _loadProjects();
     _loadTodayStatus();
+    _loadCurrentUser();
 
     // Ogni volta che la connessione torna disponibile, prova a sincronizzare
     // le timbrature accumulate offline (vedi SyncService).
@@ -54,6 +61,25 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _connectivitySub?.cancel();
     super.dispose();
+  }
+
+  /// Legge l'utente corrente e i suoi ruoli da Business Central. Se l'utente
+  /// ha un ruolo di approvatore, legge anche il numero di richieste in
+  /// sospeso, per mostrare il badge sulla piastrella Approvazioni. Se la
+  /// richiesta fallisce (es. offline al primo avvio), la piastrella
+  /// Approvazioni resta semplicemente nascosta: non è un errore bloccante,
+  /// e i ruoli vengono ricontrollati ad ogni apertura dell'app.
+  Future<void> _loadCurrentUser() async {
+    try {
+      final user = await BcApiService.instance.fetchCurrentUser();
+      setState(() => _currentUser = user);
+      if (user.canApprove) {
+        final approvals = await BcApiService.instance.fetchPendingApprovals();
+        setState(() => _pendingApprovalsCount = approvals.length);
+      }
+    } catch (_) {
+      // Nessun ruolo rilevato: la piastrella Approvazioni resta nascosta.
+    }
   }
 
   Future<void> _loadProjects() async {
@@ -92,11 +118,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final nextType = _isCurrentlyIn ? PunchType.uscita : PunchType.entrata;
     setState(() => _isPunching = true);
 
+    // Cattura un solo punto GPS (non un tracciamento continuo), usato da
+    // Business Central per calcolare la zona di trasferta. Se il permesso
+    // è negato o il GPS non è disponibile, la timbratura procede comunque
+    // senza coordinate: non deve mai essere bloccata da questo.
+    final position = await LocationService.getCurrentPositionOrNull();
+
     final punch = TimesheetPunch(
       localId: _uuid.v4(),
       projectId: _selectedProject!.id,
       type: nextType,
       timestamp: DateTime.now(),
+      latitude: position?.latitude,
+      longitude: position?.longitude,
     );
 
     // Si salva sempre prima in locale: la timbratura non va persa anche se
@@ -131,21 +165,21 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Ciao,',
+                    const Text('Ciao,',
                         style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                     Text(
-                      'Marco Rossi', // TODO: nome utente reale, letto da BC
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      _currentUser?.fullName ?? '...',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
                 CircleAvatar(
                   backgroundColor: AppColors.accentBg,
                   child: Text(
-                    'MR',
+                    _initials(_currentUser?.fullName),
                     style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w500,
@@ -200,12 +234,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(builder: (_) => const NoteSpeseScreen()),
                   ),
                 ),
+                if (_currentUser?.canApprove == true)
+                  ModuleTile(
+                    icon: Icons.fact_check_outlined,
+                    iconColor: const Color(0xFFB8860B),
+                    label: 'Approvazioni',
+                    badgeCount: _pendingApprovalsCount,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ApprovalsScreen()),
+                    ),
+                  ),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _initials(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) return '?';
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
   }
 
   Widget _buildPunchCard() {

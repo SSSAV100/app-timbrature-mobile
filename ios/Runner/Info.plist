@@ -40,6 +40,8 @@
 	<string>Serve per allegare foto ai bollettini di intervento.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Serve per allegare foto esistenti ai bollettini di intervento.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Serve per calcolare l'indennità di trasferta in base alla distanza dalla sede.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

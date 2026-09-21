@@ -1,21 +1,32 @@
-# App Timbrature — Moduli 1-4: tutti i moduli di contenuto completi
+# App Timbrature — Moduli 1-5: contenuto completo + ruoli e approvazioni
 
-Questa versione contiene tutti e quattro i moduli "di contenuto" dell'app
-aziendale descritta nella Specifica Funzionale (v2.0): login aziendale,
-timbratura entrata/uscita, ripartizione delle ore su progetti/task,
-bollettino di intervento digitale con firma cliente per i progetti
-Service, ferie/assenze (malattia, infortunio) e note spese — tutto con
-coda offline e sincronizzazione automatica verso Business Central. Nessun
-middleware esterno: l'app parla solo con Business Central e con Firebase
-(per le notifiche push, non ancora attivate in questa versione).
+Questa versione contiene i moduli "di contenuto" dell'app aziendale
+descritta nella Specifica Funzionale (v2.0): login aziendale, timbratura
+entrata/uscita (con geolocalizzazione puntuale per il calcolo trasferta),
+ripartizione delle ore su progetti/task, bollettino di intervento digitale
+con firma cliente per i progetti Service, ferie/assenze (malattia,
+infortunio) e note spese — più il primo modulo di **ruoli utente e
+approvazioni**: chi ha il ruolo di responsabile di cantiere o
+responsabile progetti vede una piastrella Approvazioni con le richieste
+in sospeso da approvare/respingere. Tutto con coda offline e
+sincronizzazione automatica verso Business Central. Nessun middleware
+esterno: l'app parla solo con Business Central e con Firebase (per le
+notifiche push, non ancora attivate in questa versione).
 
-**Cosa NON contiene ancora questa versione**: le notifiche push, e il
-flusso di approvazione responsabile/sostituto (che richiede la gestione
-dei ruoli utente, non ancora presente nell'app — per ora ogni richiesta
-viene semplicemente raccolta e inviata a Business Central). La doppia
-scrittura verso SwissSalary avviene interamente lato Business Central
-dopo l'approvazione delle ore (vedi specifica, sezione 3.2): l'app non
-parla mai direttamente con SwissSalary.
+**Due passaggi di approvazione restano volutamente fuori da questa app**
+(vedi discussione con il cliente): l'approvazione lato Salari delle ore
+Service e l'approvazione "ufficio" per i bollettini senza firma cliente
+sono gestite nativamente in Business Central (Approvals + app ufficiale
+Microsoft Business Central), perché i ruoli coinvolti lavorano già
+dentro BC tutto il giorno — costruire schermate dedicate nella nostra app
+per loro sarebbe stato lavoro ridondante.
+
+**Cosa NON contiene ancora questa versione**: notifiche push, appuntamenti
+Service, materiali per Cantieri/Acquedotti, segnalazione ripianificazione
+intervento, e l'elenco articoli reale nel bollettino (vedi elenco moduli
+in fondo). La doppia scrittura verso SwissSalary avviene interamente lato
+Business Central dopo l'approvazione delle ore (vedi specifica, sezione
+3.2): l'app non parla mai direttamente con SwissSalary.
 
 ---
 
@@ -155,14 +166,25 @@ volta approvata la riga, si occupa internamente di propagarla sia al
 modulo Progetti sia a SwissSalary — l'app non parla mai direttamente con
 SwissSalary (vedi specifica, sezione 3.2).
 
-Payload inviato dall'app:
+**Importante**: `hoursWorked` (ore da caricare sullo stipendio) e
+`hoursBillable` (ore da caricare sul progetto/da fatturare al cliente)
+sono sempre due campi distinti nel payload, ma per i progetti **Standard**
+(Cantieri/Acquedotti) l'app li invia sempre uguali (l'operaio inserisce
+un solo valore in quel caso): un dipendente che segna 3 ore lavora 3 ore
+tanto sul progetto quanto sullo stipendio. Solo per i progetti **Service**
+i due valori possono legittimamente differire, perché le ore fatturate al
+cliente e le ore pagate al dipendente sono due decisioni distinte che
+l'operaio inserisce separatamente nell'app.
+
+Payload inviato dall'app (esempio Service, con valori differenti):
 
 ```json
 {
-  "projectId": "CANT-001",
+  "projectId": "SERV-045",
   "taskId": "T10",
   "date": "2026-09-17",
-  "hours": 3.5,
+  "hoursWorked": 3.5,
+  "hoursBillable": 3,
   "note": "Scavo lato nord"
 }
 ```
@@ -274,6 +296,75 @@ specifica funzionale, sezione 9). Importo sempre in franchi svizzeri
 `category` può essere: `vitto`, `trasporto`, `carburante`, `alloggio`,
 `materiali`, `altro`. `description` e `projectId` sono opzionali.
 
+### `GET /me`
+
+Restituisce l'utente autenticato (identificato dal token Azure AD) e i
+suoi ruoli. Determina cosa mostra l'app (es. la piastrella Approvazioni):
+i ruoli non sono mai calcolati o memorizzati lato app, solo letti da BC
+ad ogni avvio.
+
+```json
+{
+  "value": [
+    {
+      "employeeId": "E-045",
+      "fullName": "Marco Rossi",
+      "roles": ["dipendente", "responsabileCantiere"]
+    }
+  ]
+}
+```
+
+`roles` è un array che può contenere: `dipendente` (sempre presente),
+`responsabileCantiere` (approva lo straordinario dei progetti Standard),
+`responsabileProgetti` (approva il lato Progetti delle ore Service). Il
+lato Salari e l'approvazione "ufficio" per i bollettini senza firma
+cliente **non** passano da questa app: sono gestiti nativamente in
+Business Central (Approvals + app ufficiale Microsoft Business Central),
+per i ruoli d'ufficio che già lavorano dentro BC tutto il giorno.
+
+### `GET /pendingApprovals`
+
+Restituisce le richieste in attesa dell'approvazione dell'utente
+corrente, in base ai suoi ruoli. Letta sempre live (nessuna coda offline
+in lettura: una lista di approvazioni non aggiornata sarebbe più dannosa
+che utile).
+
+```json
+{
+  "value": [
+    {
+      "id": "APR-00123",
+      "type": "oreCantiereStraordinario",
+      "employeeName": "Luca Bianchi",
+      "projectDescription": "Cantiere Via Stazione 12",
+      "date": "2026-09-17",
+      "hours": 9.5,
+      "note": null
+    }
+  ]
+}
+```
+
+`type` può essere `oreCantiereStraordinario` (ore Standard/Cantieri che
+superano l'orario contrattuale giornaliero — Business Central approva
+automaticamente quelle pari all'orario contrattuale, instrada qui solo le
+eccedenze) oppure `oreServiceProgetti` (il lato Progetti delle ore
+Service; il lato Salari resta separato e nativo in BC, vedi sopra).
+
+### `POST /pendingApprovals/{id}/decision`
+
+Riceve la decisione di un responsabile su una richiesta in sospeso.
+
+```json
+{
+  "decision": "approved",
+  "note": "Confermato con il caposquadra"
+}
+```
+
+`decision` può essere `approved` o `rejected`. `note` è opzionale.
+
 L'URL completo che l'app compone per queste chiamate è (vedi
 `lib/core/config.dart`):
 
@@ -285,12 +376,57 @@ https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/vacationBalance
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/absenceRequests
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/expenseReports
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/me
+https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/pendingApprovals
 ```
 
 Aggiorna in `assets/client_config.json` i valori `bcEnvironment`,
 `customApiPublisher`, `customApiGroup`, `customApiVersion` in modo che
+
 coincidano con quelli scelti nella tua estensione AL (anche qui, nessun
 file .dart da modificare).
+
+### Geolocalizzazione al momento della timbratura (calcolo trasferta)
+
+Ogni timbratura include ora, quando disponibile, un singolo punto GPS
+(campi `latitude`/`longitude` già presenti nel payload di `/timePunches`
+fin dal primo modulo). **Non è un tracciamento continuo**: si cattura un
+solo punto al momento del tocco, con permesso di localizzazione "quando
+in uso" (non "sempre"/background) — nessun impatto rilevante sulla
+batteria, nessuna delle complicazioni di revisione store che il
+tracciamento continuo comporterebbe.
+
+Se il permesso è negato, il GPS è spento, o la richiesta va in timeout
+(6 secondi), la timbratura viene comunque registrata senza coordinate:
+non è mai bloccante (vedi `lib/services/location_service.dart`).
+
+**Calcolo della zona di trasferta: responsabilità di Business Central,
+non dell'app.** L'app si limita a fornire le coordinate del punto di
+timbratura; è la tua estensione AL a:
+1. conoscere le coordinate fisse della sede centrale (da configurare in
+   BC, non nell'app, così restano modificabili senza ricompilare nulla),
+2. calcolare la distanza in linea d'aria tra sede e punto di timbratura,
+3. mappare la distanza sulla fascia/zona di trasferta corretta secondo le
+   regole del CCL applicabile (fasce ancora da ricevere dal cliente al
+   momento della stesura di questo modulo),
+4. generare la relativa voce di indennità in SwissSalary.
+
+Questo mantiene coerente l'architettura del progetto (sezione 3.2):
+nessuna logica di business nell'app, Business Central resta l'unico
+"motore" applicativo.
+
+**Permesso nativo richiesto:**
+- **iOS**: aggiungi in `ios/Runner/Info.plist` (oltre alle chiavi già
+  presenti per fotocamera/galleria):
+  ```xml
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Serve per calcolare l'indennità di trasferta in base alla distanza dalla sede.</string>
+  ```
+- **Android**: il pacchetto `geolocator` aggiunge automaticamente il
+  permesso `ACCESS_FINE_LOCATION` al manifest; in Google Play Console
+  andrà comunque compilata la sezione "Sicurezza dei dati" dichiarando
+  l'uso della posizione (motivo: calcolo trasferta, non pubblicità né
+  tracciamento).
 
 ### Permessi nativi richiesti (fotocamera e galleria)
 
@@ -398,14 +534,24 @@ parte Business Central/commerciale del progetto.
 
 Nell'ordine suggerito dalla roadmap della specifica funzionale:
 
-1. ✅ Login + Timbratura
-2. ✅ Ore su progetti/task (ripartizione ore, controllo di coerenza con le
+1. ✅ Login + Timbratura (con cattura GPS puntuale per il calcolo
+   trasferta lato BC — fasce di distanza ancora da ricevere dal cliente)
+2. ✅ Ore su progetti/task (ripartizione ore con distinzione ore
+   stipendio/ore fattura per i progetti Service, controllo di coerenza con le
    timbrature; la doppia scrittura verso SwissSalary avviene lato BC dopo
    l'approvazione, non è compito dell'app)
 3. ✅ Bollettino di intervento digitale (progetti Service, firma cliente,
    foto, generazione PDF condiviso immediatamente sul posto)
 4. ✅ Ferie, Assenze (malattia/infortunio, gestite in ore) e Note spese
    (in CHF, con ricevuta fotografata)
-5. Notifiche push (Firebase)
-6. Flusso di approvazione responsabile/sostituto (richiede la gestione
-   dei ruoli utente nell'app, non ancora presente)
+5. ✅ Ruoli utente e Approvazioni (straordinario Cantieri/Acquedotti e
+   lato Progetti delle ore Service; il lato Salari e l'approvazione
+   "ufficio" restano nativi in Business Central)
+6. Appuntamenti Service (letti da BC, mostrati al tecnico)
+7. Materiali per Cantieri/Acquedotti (senza firma/fattura, a differenza
+   del bollettino Service)
+8. Segnalazione ripianificazione intervento non concluso (nota + allegato,
+   la ripianificazione vera e propria avviene in BC)
+9. Bollettino: materiali da vero elenco articoli BC (non testo libero),
+   allegato generico, e generazione automatica della fattura
+10. Notifiche push (Firebase)

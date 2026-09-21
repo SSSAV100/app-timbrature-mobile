@@ -33,6 +33,12 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.4.2
 
+  # Geolocalizzazione puntuale al momento della timbratura (calcolo
+  # trasferta lato Business Central). Nessun tracciamento continuo:
+  # un solo punto GPS per timbratura, permesso "quando in uso" (non
+  # "sempre"/background).
+  geolocator: ^14.0.2
+
   # Modulo Bollettino di intervento (progetti Service): firma cliente,
   # foto, generazione PDF e condivisione immediata.
   signature: ^6.3.0

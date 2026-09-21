@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 
 import '../core/config.dart';
 import '../core/local_files.dart';
+import '../models/app_user.dart';
+import '../models/approval_decision.dart';
+import '../models/approval_item.dart';
 import '../models/assenza_request.dart';
 import '../models/bollettino.dart';
 import '../models/nota_spesa.dart';
@@ -123,6 +126,10 @@ class BcApiService {
   /// Legge il saldo ferie/permessi residuo dell'utente, espresso in ore
   /// (vedi specifica funzionale, sezione 8: tutto è gestito in ore, non in
   /// giorni). Endpoint atteso: GET {customApiBaseUrl}/vacationBalance
+  /// Come tutte le altre API GET di questo progetto, la risposta segue la
+  /// convenzione standard delle API page di Business Central: un oggetto
+  /// "value" contenente un array (qui con un solo elemento, il saldo
+  /// dell'utente corrente).
   Future<double> fetchVacationBalanceHours() async {
     final headers = await _authHeaders();
     final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/vacationBalance');
@@ -131,7 +138,10 @@ class BcApiService {
     _throwIfNotOk(response);
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return (body['balanceHours'] as num? ?? 0).toDouble();
+    final items = body['value'] as List<dynamic>? ?? [];
+    if (items.isEmpty) return 0;
+    final first = items.first as Map<String, dynamic>;
+    return (first['balanceHours'] as num? ?? 0).toDouble();
   }
 
   /// Invia una richiesta di ferie o una segnalazione di assenza (malattia,
@@ -190,6 +200,58 @@ class BcApiService {
 
   String _dateOnly(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// Legge l'utente corrente e i suoi ruoli (dipendente, responsabile di
+  /// cantiere, responsabile progetti). Endpoint atteso:
+  /// GET {customApiBaseUrl}/me
+  /// I ruoli decidono cosa mostrare in app (es. la piastrella
+  /// Approvazioni): non sono mai calcolati o memorizzati lato app, solo
+  /// letti da BC ad ogni avvio.
+  Future<AppUser> fetchCurrentUser() async {
+    final headers = await _authHeaders();
+    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/me');
+
+    final response = await http.get(uri, headers: headers);
+    _throwIfNotOk(response);
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final items = body['value'] as List<dynamic>? ?? [];
+    if (items.isEmpty) {
+      throw BcApiException('Utente non trovato in Business Central.');
+    }
+    return AppUser.fromJson(items.first as Map<String, dynamic>);
+  }
+
+  /// Legge le richieste in attesa dell'approvazione dell'utente corrente
+  /// (straordinario Cantieri/Acquedotti e/o lato Progetti delle ore
+  /// Service, a seconda dei ruoli dell'utente — vedi specifica funzionale).
+  /// Endpoint atteso: GET {customApiBaseUrl}/pendingApprovals
+  /// Letta sempre live: una lista di approvazioni non aggiornata sarebbe
+  /// più dannosa che utile, quindi non viene messa in coda offline.
+  Future<List<ApprovalItem>> fetchPendingApprovals() async {
+    final headers = await _authHeaders();
+    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/pendingApprovals');
+
+    final response = await http.get(uri, headers: headers);
+    _throwIfNotOk(response);
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final items = body['value'] as List<dynamic>? ?? [];
+    return items.map((e) => ApprovalItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Invia la decisione (approvato/respinto) di un responsabile su un
+  /// elemento in sospeso. Endpoint atteso:
+  /// POST {customApiBaseUrl}/pendingApprovals/{id}/decision
+  Future<void> submitApprovalDecision(ApprovalDecision decision) async {
+    final headers = await _authHeaders();
+    final uri = Uri.parse(
+      '${AppConfig.instance.customApiBaseUrl}/pendingApprovals/${decision.approvalItemId}/decision',
+    );
+
+    final response = await http.post(uri, headers: headers, body: jsonEncode(decision.toBcJson()));
+    _throwIfNotOk(response);
+  }
 
   void _throwIfNotOk(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {

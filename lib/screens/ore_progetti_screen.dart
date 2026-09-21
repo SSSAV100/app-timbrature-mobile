@@ -64,7 +64,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   }
 
   double get _totalEnteredHours =>
-      _entries.fold(0.0, (sum, e) => sum + e.hours);
+      _entries.fold(0.0, (sum, e) => sum + e.hoursWorked);
 
   double get _workedHours => _workedDuration.inMinutes / 60.0;
 
@@ -231,7 +231,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ore ripartite', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
+                Text('Ore ripartite (stipendio)', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
                 Text(
                   '${_totalEnteredHours.toStringAsFixed(2)} h',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -265,7 +265,8 @@ class _AddTimeEntrySheet extends StatefulWidget {
 
 class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
   final _uuid = const Uuid();
-  final _hoursController = TextEditingController();
+  final _hoursWorkedController = TextEditingController();
+  final _hoursBillableController = TextEditingController();
   final _noteController = TextEditingController();
 
   Project? _selectedProject;
@@ -279,18 +280,32 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
 
   @override
   void dispose() {
-    _hoursController.dispose();
+    _hoursWorkedController.dispose();
+    _hoursBillableController.dispose();
     _noteController.dispose();
     super.dispose();
   }
 
+  bool get _isService => _selectedProject?.type == ProjectType.service;
+
   void _save() {
-    final hours = double.tryParse(_hoursController.text.replaceAll(',', '.'));
-    if (_selectedProject == null || hours == null || hours <= 0) {
+    final hoursWorked = double.tryParse(_hoursWorkedController.text.replaceAll(',', '.'));
+    if (_selectedProject == null || hoursWorked == null || hoursWorked <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inserisci un numero di ore valido.')),
+        const SnackBar(content: Text('Inserisci un numero di ore stipendio valido.')),
       );
       return;
+    }
+
+    double? hoursBillable;
+    if (_isService) {
+      hoursBillable = double.tryParse(_hoursBillableController.text.replaceAll(',', '.'));
+      if (hoursBillable == null || hoursBillable <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inserisci un numero di ore progetto/fattura valido.')),
+        );
+        return;
+      }
     }
 
     final entry = TimeEntry(
@@ -298,7 +313,8 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
       projectId: _selectedProject!.id,
       taskId: _selectedTask?.id,
       date: widget.date,
-      hours: hours,
+      hoursWorked: hoursWorked,
+      hoursBillable: hoursBillable,
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       status: SyncStatus.pending,
     );
@@ -317,54 +333,82 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Nuova riga ore', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<Project>(
-            initialValue: _selectedProject,
-            decoration: const InputDecoration(labelText: 'Progetto/cantiere'),
-            items: widget.projects
-                .map((p) => DropdownMenuItem(value: p, child: Text(p.description)))
-                .toList(),
-            onChanged: (p) => setState(() {
-              _selectedProject = p;
-              _selectedTask = null;
-            }),
-          ),
-          const SizedBox(height: 12),
-          if (tasks.isNotEmpty)
-            DropdownButtonFormField<ProjectTask>(
-              initialValue: _selectedTask,
-              decoration: const InputDecoration(labelText: 'Task/attività (opzionale)'),
-              items: tasks
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t.description)))
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Nuova riga ore', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<Project>(
+              initialValue: _selectedProject,
+              decoration: const InputDecoration(labelText: 'Progetto/cantiere'),
+              items: widget.projects
+                  .map((p) => DropdownMenuItem(value: p, child: Text(p.description)))
                   .toList(),
-              onChanged: (t) => setState(() => _selectedTask = t),
+              onChanged: (p) => setState(() {
+                _selectedProject = p;
+                _selectedTask = null;
+              }),
             ),
-          if (tasks.isNotEmpty) const SizedBox(height: 12),
-          TextField(
-            controller: _hoursController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Ore (es. 3.5)'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _noteController,
-            decoration: const InputDecoration(labelText: 'Nota (opzionale)'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _save,
-              child: const Text('Aggiungi'),
+            const SizedBox(height: 12),
+            if (tasks.isNotEmpty)
+              DropdownButtonFormField<ProjectTask>(
+                initialValue: _selectedTask,
+                decoration: const InputDecoration(labelText: 'Task/attività (opzionale)'),
+                items: tasks
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.description)))
+                    .toList(),
+                onChanged: (t) => setState(() => _selectedTask = t),
+              ),
+            if (tasks.isNotEmpty) const SizedBox(height: 12),
+
+            if (_isService) ...[
+              // Progetto Service: le ore da caricare sul progetto/fattura
+              // cliente e quelle da caricare sullo stipendio possono
+              // differire, quindi si chiedono separatamente.
+              TextField(
+                controller: _hoursBillableController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Ore progetto/fattura cliente',
+                  helperText: 'Ore da caricare sul progetto e da fatturare al cliente',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _hoursWorkedController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Ore stipendio',
+                  helperText: 'Ore da caricare sullo stipendio del dipendente',
+                ),
+              ),
+            ] else
+              // Progetto Standard (Cantieri/Acquedotti): un unico valore,
+              // le stesse ore vanno tanto sul progetto quanto sullo stipendio.
+              TextField(
+                controller: _hoursWorkedController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Ore (es. 3.5)'),
+              ),
+
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Nota (opzionale)'),
+              maxLines: 2,
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _save,
+                child: const Text('Aggiungi'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

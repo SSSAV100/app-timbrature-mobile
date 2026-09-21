@@ -29,6 +29,7 @@ class SyncService {
       await _syncPendingBollettini();
       await _syncPendingAssenze();
       await _syncPendingNoteSpese();
+      await _syncPendingApprovalDecisions();
     } finally {
       _isSyncing = false;
     }
@@ -95,6 +96,19 @@ class SyncService {
       } catch (e) {
         await LocalDbService.instance.markNotaSpesaFailed(nota.localId, e.toString());
         // Si prosegue con le altre note spese in coda anche se una fallisce.
+      }
+    }
+  }
+
+  Future<void> _syncPendingApprovalDecisions() async {
+    final pending = await LocalDbService.instance.getPendingApprovalDecisions();
+    for (final decision in pending) {
+      try {
+        await BcApiService.instance.submitApprovalDecision(decision);
+        await LocalDbService.instance.markApprovalDecisionSynced(decision.localId);
+      } catch (e) {
+        await LocalDbService.instance.markApprovalDecisionFailed(decision.localId, e.toString());
+        // Si prosegue con le altre decisioni in coda anche se una fallisce.
       }
     }
   }

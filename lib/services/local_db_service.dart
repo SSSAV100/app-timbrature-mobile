@@ -1,6 +1,7 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/approval_decision.dart';
 import '../models/assenza_request.dart';
 import '../models/bollettino.dart';
 import '../models/nota_spesa.dart';
@@ -28,13 +29,14 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 6,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
         await _createBollettiniTable(db);
         await _createAssenzeTable(db);
         await _createNoteSpeseTable(db);
+        await _createApprovalDecisionsTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -46,6 +48,14 @@ class LocalDbService {
         if (oldVersion < 4) {
           await _createAssenzeTable(db);
           await _createNoteSpeseTable(db);
+        }
+        if (oldVersion < 5) {
+          await _createApprovalDecisionsTable(db);
+        }
+        if (oldVersion < 6) {
+          // Aggiunge la distinzione ore stipendio / ore fatturabili al
+          // progetto (solo per i progetti Service, vedi TimeEntry).
+          await db.execute('ALTER TABLE pending_time_entries ADD COLUMN hours_billable REAL');
         }
       },
     );
@@ -75,6 +85,7 @@ class LocalDbService {
         task_id TEXT,
         date TEXT NOT NULL,
         hours REAL NOT NULL,
+        hours_billable REAL,
         note TEXT,
         status TEXT NOT NULL,
         error_message TEXT
@@ -129,6 +140,19 @@ class LocalDbService {
         description TEXT,
         project_id TEXT,
         receipt_path TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_message TEXT
+      )
+    ''');
+  }
+
+  Future<void> _createApprovalDecisionsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE pending_approval_decisions (
+        local_id TEXT PRIMARY KEY,
+        approval_item_id TEXT NOT NULL,
+        decision TEXT NOT NULL,
+        note TEXT,
         status TEXT NOT NULL,
         error_message TEXT
       )
@@ -392,6 +416,47 @@ class LocalDbService {
     final db = await database;
     await db.update(
       'pending_note_spese',
+      {'status': SyncStatus.failed.name, 'error_message': errorMessage},
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  // --- Decisioni di approvazione ---
+
+  Future<void> saveApprovalDecision(ApprovalDecision decision) async {
+    final db = await database;
+    await db.insert(
+      'pending_approval_decisions',
+      decision.toDbMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<ApprovalDecision>> getPendingApprovalDecisions() async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_approval_decisions',
+      where: 'status = ?',
+      whereArgs: [SyncStatus.pending.name],
+    );
+    return rows.map(ApprovalDecision.fromDbMap).toList();
+  }
+
+  Future<void> markApprovalDecisionSynced(String localId) async {
+    final db = await database;
+    await db.update(
+      'pending_approval_decisions',
+      {'status': SyncStatus.synced.name, 'error_message': null},
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  Future<void> markApprovalDecisionFailed(String localId, String errorMessage) async {
+    final db = await database;
+    await db.update(
+      'pending_approval_decisions',
       {'status': SyncStatus.failed.name, 'error_message': errorMessage},
       where: 'local_id = ?',
       whereArgs: [localId],
