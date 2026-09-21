@@ -248,8 +248,16 @@ class BcApiService {
   /// sempre la forma entitySet(key)/NomeAzione, quindi lato AL è stato
   /// esposto come aggiornamento diretto di una risorsa dedicata
   /// "approvalDecisions" — vedi SS.ApprovalDecisionApi.Page.al).
+  /// `{id}` è la chiave OData "Entry No." (Integer), quindi va **senza**
+  /// apici nell'URL (l'apice singolo è la convenzione OData solo per
+  /// chiavi di tipo testo/Code, non per chiavi numeriche).
+  /// Richiede anche l'header `If-Match`, obbligatorio per il controllo di
+  /// concorrenza ottimistica delle API OData di BC su PATCH/DELETE: si usa
+  /// '*' per non dover prima leggere l'ETag del record (va bene qui,
+  /// dato che ogni richiesta ha un solo possibile approvatore alla volta).
   Future<void> submitApprovalDecision(ApprovalDecision decision) async {
     final headers = await _authHeaders();
+    headers['If-Match'] = '*';
     final uri = Uri.parse(
       '${AppConfig.instance.customApiBaseUrl}/approvalDecisions(${decision.approvalItemId})',
     );
