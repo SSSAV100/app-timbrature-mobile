@@ -101,6 +101,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: Theme.of(context).textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 4),
+                // Diagnostica temporanea: nessun accesso alla console del
+                // dispositivo per una build TestFlight (niente Mac
+                // collegato), quindi il redirectUri usato a runtime va
+                // reso visibile qui invece che solo loggato.
+                Text(
+                  'redirectUri: ${AppConfig.instance.redirectUri}',
+                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
                   Text(

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -32,6 +33,10 @@ class AuthService {
   /// Ritorna true se il login è andato a buon fine.
   Future<bool> signIn() async {
     lastErrorMessage = null;
+    // Diagnostica: nessun accesso alla console del dispositivo per una
+    // build TestFlight (niente Mac collegato), quindi il valore usato a
+    // runtime va reso visibile a schermo invece che solo loggato.
+    debugPrint('AuthService.signIn: redirectUri="${AppConfig.instance.redirectUri}"');
     try {
       final result = await _appAuth
           .authorizeAndExchangeCode(

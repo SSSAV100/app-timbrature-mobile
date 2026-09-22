@@ -4,7 +4,7 @@ description: >
   integrata direttamente con Microsoft Dynamics 365 Business Central
   (nessun middleware esterno).
 publish_to: 'none'
-version: 0.1.0+5
+version: 0.1.0+6
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
