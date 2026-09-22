@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -29,18 +29,31 @@ class AuthService {
   /// tecnico utile in fase di test, non pensato per l'utente finale.
   String? lastErrorMessage;
 
+  static void _log(String message) {
+    // ignore: avoid_print
+    print('[AUTH DEBUG] $message');
+    developer.log(message, name: 'AuthService');
+  }
+
   /// Avvia il login interattivo tramite il browser di sistema (Azure AD SSO).
   /// Ritorna true se il login è andato a buon fine.
+  ///
+  /// VERSIONE DIAGNOSTICA TEMPORANEA: il flusso normale
+  /// (authorizeAndExchangeCode, un'unica chiamata) è stato diviso in due
+  /// passaggi separati — authorize() e token() — ciascuno con il proprio
+  /// timeout e log a console, per capire quale dei due si blocca durante
+  /// il login su iOS reale (osservato: timeout dopo 25s con la chiamata
+  /// unica, causa non ancora isolata). Da ripristinare alla versione unica
+  /// una volta isolata la causa.
   Future<bool> signIn() async {
     lastErrorMessage = null;
-    // Diagnostica: nessun accesso alla console del dispositivo per una
-    // build TestFlight (niente Mac collegato), quindi il valore usato a
-    // runtime va reso visibile a schermo invece che solo loggato.
-    debugPrint('AuthService.signIn: redirectUri="${AppConfig.instance.redirectUri}"');
     try {
-      final result = await _appAuth
-          .authorizeAndExchangeCode(
-            AuthorizationTokenRequest(
+      _log('redirectUri="${AppConfig.instance.redirectUri}"');
+      _log('1/2 — Avvio authorize() (autorizzazione + redirect)...');
+
+      final authResponse = await _appAuth
+          .authorize(
+            AuthorizationRequest(
               AppConfig.instance.azureClientId,
               AppConfig.instance.redirectUri,
               serviceConfiguration: AuthorizationServiceConfiguration(
@@ -48,37 +61,71 @@ class AuthService {
                 tokenEndpoint: AppConfig.instance.tokenEndpoint,
               ),
               scopes: AppConfig.scopes,
-              // Nessun prompt esplicito: sia 'select_account' che 'login' hanno
-              // mostrato in test reale un ciclo silenzioso-poi-interattivo che
-              // si blocca (AADSTS50199 seguito da un retry interno che non
-              // completa il redirect verso l'app, o con 'login' un loop di
-              // richieste di credenziali). Si lascia che Azure AD scelga il
-              // proprio comportamento predefinito.
+              promptValues: const ['select_account'],
             ),
           )
-          // Senza timeout, un blocco della sessione di login (osservato in
-          // test reale su iOS: resta su "Accesso in corso..." a tempo
-          // indeterminato dopo il redirect) lascia l'utente bloccato senza
-          // alcun segnale d'errore.
           .timeout(
-            const Duration(seconds: 25),
-            onTimeout: () => throw TimeoutException(
-              'Timeout: il login non si è completato entro 25 secondi.',
-            ),
+            const Duration(seconds: 45),
+            onTimeout: () {
+              _log('1/2 — TIMEOUT: authorize() non ha risposto entro 45s. '
+                  'Il blocco è nel redirect/autorizzazione, non nello scambio token.');
+              throw TimeoutException('authorize() timeout (redirect/autorizzazione)');
+            },
           );
 
-      if (result.accessToken == null) {
-        lastErrorMessage = 'Nessun access token ricevuto dal login.';
+      _log('1/2 — authorize() completato. '
+          'authorizationCode presente: ${authResponse.authorizationCode != null}, '
+          'codeVerifier presente: ${authResponse.codeVerifier != null}');
+
+      if (authResponse.authorizationCode == null) {
+        _log('1/2 — Nessun codice di autorizzazione ricevuto: '
+            'l\'utente ha annullato, o il redirect non ha portato un codice valido.');
+        lastErrorMessage = 'authorize() non ha restituito un codice di autorizzazione.';
+        return false;
+      }
+
+      _log('2/2 — Avvio token() (scambio codice -> access token)...');
+
+      final tokenResponse = await _appAuth
+          .token(
+            TokenRequest(
+              AppConfig.instance.azureClientId,
+              AppConfig.instance.redirectUri,
+              authorizationCode: authResponse.authorizationCode,
+              codeVerifier: authResponse.codeVerifier,
+              serviceConfiguration: AuthorizationServiceConfiguration(
+                authorizationEndpoint: AppConfig.instance.authorizationEndpoint,
+                tokenEndpoint: AppConfig.instance.tokenEndpoint,
+              ),
+              scopes: AppConfig.scopes,
+            ),
+          )
+          .timeout(
+            const Duration(seconds: 45),
+            onTimeout: () {
+              _log('2/2 — TIMEOUT: token() non ha risposto entro 45s. '
+                  'Il redirect ha funzionato, il blocco è nella chiamata di '
+                  'rete verso il token endpoint (dopo che il browser si è già chiuso).');
+              throw TimeoutException('token() timeout (scambio codice -> token)');
+            },
+          );
+
+      _log('2/2 — token() completato. accessToken presente: ${tokenResponse.accessToken != null}');
+
+      if (tokenResponse.accessToken == null) {
+        lastErrorMessage = 'token() non ha restituito un access token.';
         return false;
       }
 
       await _persistTokens(
-        accessToken: result.accessToken!,
-        refreshToken: result.refreshToken,
-        accessTokenExpirationDateTime: result.accessTokenExpirationDateTime,
+        accessToken: tokenResponse.accessToken!,
+        refreshToken: tokenResponse.refreshToken,
+        accessTokenExpirationDateTime: tokenResponse.accessTokenExpirationDateTime,
       );
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _log('ECCEZIONE: ${e.runtimeType} — $e');
+      _log('Stack trace: $stackTrace');
       lastErrorMessage = e.toString();
       return false;
     }
