@@ -44,6 +44,13 @@
 	<string>Serve per allegare foto esistenti ai bollettini di intervento.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Serve per calcolare l'indennità di trasferta in base alla distanza dalla sede.</string>
+	<!-- L'app chiede solo il permesso "quando in uso" (mai "sempre"), ma il
+	     plugin geolocator fa riferimento anche all'API "Always" nel suo
+	     codice compilato: Apple richiede comunque questa chiave in
+	     pubblicazione (avviso ITMS-90683), anche se non viene mai usata a
+	     runtime. -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Serve per calcolare l'indennità di trasferta in base alla distanza dalla sede.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
