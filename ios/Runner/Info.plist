@@ -27,26 +27,16 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<!-- Deve corrispondere allo schema di iosRedirectUri in
-				     assets/client_config.json (msauth.com.salarysolution.appTimbrature://auth).
-				     Su iOS lo schema "msauth" nudo (usato su Android) viene rifiutato
-				     da Apple in pubblicazione (errore 90155): la convenzione Microsoft
-				     per iOS richiede il bundle ID incorporato nello schema stesso. -->
-				<string>msauth.com.salarysolution.appTimbrature</string>
-			</array>
-		</dict>
-		<!-- Schema aggiuntivo di test (stesso "msauth" nudo usato su Android):
-		     Apple lo rifiuta in pubblicazione (errore 90155), quindi va tolto
-		     prima di ricaricare su App Store Connect - qui solo per isolare
-		     se il blocco su iOS dipende dallo schema iOS-specifico sopra. -->
-		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>msauth</string>
+				<!-- Deve corrispondere allo schema di redirectUri in
+				     assets/client_config.json (msauth.com.salarysolution.appTimbrature://auth),
+				     stesso schema unificato usato su Android. Uno schema "msauth"
+				     nudo viene rifiutato da Apple in pubblicazione (errore 90155,
+				     "Disallowed URL schemes"). -->
+				<string>msauth.com.salarysolution.appTimbrature</string>
 			</array>
 		</dict>
 	</array>

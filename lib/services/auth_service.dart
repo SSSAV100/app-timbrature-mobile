@@ -37,7 +37,7 @@ class AuthService {
           .authorizeAndExchangeCode(
             AuthorizationTokenRequest(
               AppConfig.instance.azureClientId,
-              AppConfig.instance.platformRedirectUri,
+              AppConfig.instance.redirectUri,
               serviceConfiguration: AuthorizationServiceConfiguration(
                 authorizationEndpoint: AppConfig.instance.authorizationEndpoint,
                 tokenEndpoint: AppConfig.instance.tokenEndpoint,
@@ -101,7 +101,7 @@ class AuthService {
       final result = await _appAuth.token(
         TokenRequest(
           AppConfig.instance.azureClientId,
-          AppConfig.instance.platformRedirectUri,
+          AppConfig.instance.redirectUri,
           refreshToken: refreshToken,
           serviceConfiguration: AuthorizationServiceConfiguration(
             authorizationEndpoint: AppConfig.instance.authorizationEndpoint,

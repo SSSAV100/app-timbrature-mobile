@@ -31,10 +31,11 @@ android {
         versionName = flutter.versionName
 
         // Necessario per flutter_appauth: registra lo schema dell'URI di redirect
-        // (msauth://com.salarysolution.app_timbrature/callback, vedi
-        // assets/client_config.json) nell'activity di redirect che il plugin
-        // aggiunge automaticamente al manifest.
-        manifestPlaceholders["appAuthRedirectScheme"] = "msauth"
+        // (msauth.com.salarysolution.appTimbrature://auth, vedi
+        // assets/client_config.json - stesso schema unificato usato su iOS,
+        // non il generico "msauth" nudo) nell'activity di redirect che il
+        // plugin aggiunge automaticamente al manifest.
+        manifestPlaceholders["appAuthRedirectScheme"] = "msauth.com.salarysolution.appTimbrature"
     }
 
     buildTypes {
