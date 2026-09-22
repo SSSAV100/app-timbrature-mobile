@@ -4,7 +4,7 @@ description: >
   integrata direttamente con Microsoft Dynamics 365 Business Central
   (nessun middleware esterno).
 publish_to: 'none'
-version: 0.1.0+8
+version: 0.1.0+9
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -15,7 +15,19 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Login aziendale (Azure AD / Microsoft Entra ID) via OAuth2/OIDC standard.
-  flutter_appauth: ^12.0.2
+  # NOTA: fissato a 11.x deliberatamente, non 12.x. La v12 ha riscritto da
+  # zero la parte iOS per adottare UISceneDelegate (release notes: "Plugin
+  # and example app now adopt UISceneDelegate") — un cambiamento
+  # strutturale molto recente. Con la 12.x, authorize() si blocca
+  # indefinitamente su iOS reale (confermato con log diagnostici: il
+  # browser Microsoft appare e il login/MFA si completa, ma la sessione
+  # nativa non restituisce mai il controllo all'app). La 11.x è l'ultima
+  # versione stabile precedente a quel riscritto, e mantiene comunque gli
+  # aggiornamenti Android più recenti (compileSdkVersion 35) che avevano
+  # richiesto l'aggiornamento dalla 6.x in origine. Non aggiornare a 12.x
+  # senza aver prima verificato che il problema iOS sia stato risolto a
+  # monte nel plugin.
+  flutter_appauth: ^11.0.0
   # Conservazione sicura dei token di accesso sul dispositivo.
   flutter_secure_storage: ^11.0.0
 
