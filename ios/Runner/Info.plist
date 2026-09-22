@@ -37,6 +37,18 @@
 				<string>msauth.com.salarysolution.appTimbrature</string>
 			</array>
 		</dict>
+		<!-- Schema aggiuntivo di test (stesso "msauth" nudo usato su Android):
+		     Apple lo rifiuta in pubblicazione (errore 90155), quindi va tolto
+		     prima di ricaricare su App Store Connect - qui solo per isolare
+		     se il blocco su iOS dipende dallo schema iOS-specifico sopra. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>msauth</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Serve per allegare foto ai bollettini di intervento.</string>
