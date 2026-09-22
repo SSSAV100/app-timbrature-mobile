@@ -29,10 +29,12 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<!-- Deve corrispondere allo schema di redirectUri in assets/client_config.json
-				     (msauth://com.salarysolution.app_timbrature/callback), per far tornare
-				     il login di Azure AD dentro l'app tramite il browser di sistema. -->
-				<string>msauth</string>
+				<!-- Deve corrispondere allo schema di iosRedirectUri in
+				     assets/client_config.json (msauth.com.salarysolution.appTimbrature://auth).
+				     Su iOS lo schema "msauth" nudo (usato su Android) viene rifiutato
+				     da Apple in pubblicazione (errore 90155): la convenzione Microsoft
+				     per iOS richiede il bundle ID incorporato nello schema stesso. -->
+				<string>msauth.com.salarysolution.appTimbrature</string>
 			</array>
 		</dict>
 	</array>

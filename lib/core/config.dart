@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/services.dart' show rootBundle;
 
 /// Configurazione specifica del cliente/azienda per cui questa build
@@ -16,6 +17,7 @@ class AppConfig {
     required this.azureTenantId,
     required this.azureClientId,
     required this.redirectUri,
+    required this.iosRedirectUri,
     required this.bcEnvironment,
     required this.customApiPublisher,
     required this.customApiGroup,
@@ -27,7 +29,14 @@ class AppConfig {
   final String primaryColorHex;
   final String azureTenantId;
   final String azureClientId;
+  /// Redirect URI Android: msauth://<package>/callback (convenzione
+  /// AppAuth/MSAL su Android).
   final String redirectUri;
+  /// Redirect URI iOS: msauth.<bundle-id>://auth. Apple rifiuta in
+  /// pubblicazione uno schema "msauth" nudo (errore 90155, "The following
+  /// URL schemes found in your app are disallowed"), quindi su iOS serve
+  /// questa forma diversa, con il bundle ID incorporato nello schema.
+  final String iosRedirectUri;
   final String bcEnvironment;
   final String customApiPublisher;
   final String customApiGroup;
@@ -63,6 +72,7 @@ class AppConfig {
       azureTenantId: json['azureTenantId'] as String,
       azureClientId: json['azureClientId'] as String,
       redirectUri: json['redirectUri'] as String,
+      iosRedirectUri: json['iosRedirectUri'] as String,
       bcEnvironment: json['bcEnvironment'] as String,
       customApiPublisher: json['customApiPublisher'] as String,
       customApiGroup: json['customApiGroup'] as String,
@@ -73,6 +83,10 @@ class AppConfig {
   }
 
   // --- Valori uguali per tutti i clienti: non vanno duplicati nel JSON ---
+
+  /// Redirect URI da usare per la piattaforma corrente: Android e iOS
+  /// hanno convenzioni diverse per lo schema "msauth" (vedi [iosRedirectUri]).
+  String get platformRedirectUri => Platform.isIOS ? iosRedirectUri : redirectUri;
 
   static const List<String> scopes = [
     'https://api.businesscentral.dynamics.com/user_impersonation',

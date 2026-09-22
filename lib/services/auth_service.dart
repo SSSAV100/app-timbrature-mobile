@@ -28,13 +28,18 @@ class AuthService {
       final result = await _appAuth.authorizeAndExchangeCode(
         AuthorizationTokenRequest(
           AppConfig.instance.azureClientId,
-          AppConfig.instance.redirectUri,
+          AppConfig.instance.platformRedirectUri,
           serviceConfiguration: AuthorizationServiceConfiguration(
             authorizationEndpoint: AppConfig.instance.authorizationEndpoint,
             tokenEndpoint: AppConfig.instance.tokenEndpoint,
           ),
           scopes: AppConfig.scopes,
-          promptValues: const ['select_account'],
+          // Nessun prompt esplicito: sia 'select_account' che 'login' hanno
+          // mostrato in test reale un ciclo silenzioso-poi-interattivo che
+          // si blocca (AADSTS50199 seguito da un retry interno che non
+          // completa il redirect verso l'app, o con 'login' un loop di
+          // richieste di credenziali). Si lascia che Azure AD scelga il
+          // proprio comportamento predefinito.
         ),
       );
 
@@ -74,7 +79,7 @@ class AuthService {
       final result = await _appAuth.token(
         TokenRequest(
           AppConfig.instance.azureClientId,
-          AppConfig.instance.redirectUri,
+          AppConfig.instance.platformRedirectUri,
           refreshToken: refreshToken,
           serviceConfiguration: AuthorizationServiceConfiguration(
             authorizationEndpoint: AppConfig.instance.authorizationEndpoint,
