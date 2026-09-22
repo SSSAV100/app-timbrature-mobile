@@ -34,7 +34,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() {
-      _errorMessage = 'Accesso non riuscito. Riprova.';
+      final detail = AuthService.instance.lastErrorMessage;
+      _errorMessage = detail == null
+          ? 'Accesso non riuscito. Riprova.'
+          : 'Accesso non riuscito: $detail';
       _isLoading = false;
     });
   }

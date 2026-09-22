@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -21,29 +23,49 @@ class AuthService {
   static const _keyRefreshToken = 'bc_refresh_token';
   static const _keyExpiry = 'bc_token_expiry';
 
+  /// Messaggio dell'ultimo errore di login, per diagnosticare i fallimenti
+  /// (mostrato da LoginScreen). Non tradotto/ripulito: è un dettaglio
+  /// tecnico utile in fase di test, non pensato per l'utente finale.
+  String? lastErrorMessage;
+
   /// Avvia il login interattivo tramite il browser di sistema (Azure AD SSO).
   /// Ritorna true se il login è andato a buon fine.
   Future<bool> signIn() async {
+    lastErrorMessage = null;
     try {
-      final result = await _appAuth.authorizeAndExchangeCode(
-        AuthorizationTokenRequest(
-          AppConfig.instance.azureClientId,
-          AppConfig.instance.platformRedirectUri,
-          serviceConfiguration: AuthorizationServiceConfiguration(
-            authorizationEndpoint: AppConfig.instance.authorizationEndpoint,
-            tokenEndpoint: AppConfig.instance.tokenEndpoint,
-          ),
-          scopes: AppConfig.scopes,
-          // Nessun prompt esplicito: sia 'select_account' che 'login' hanno
-          // mostrato in test reale un ciclo silenzioso-poi-interattivo che
-          // si blocca (AADSTS50199 seguito da un retry interno che non
-          // completa il redirect verso l'app, o con 'login' un loop di
-          // richieste di credenziali). Si lascia che Azure AD scelga il
-          // proprio comportamento predefinito.
-        ),
-      );
+      final result = await _appAuth
+          .authorizeAndExchangeCode(
+            AuthorizationTokenRequest(
+              AppConfig.instance.azureClientId,
+              AppConfig.instance.platformRedirectUri,
+              serviceConfiguration: AuthorizationServiceConfiguration(
+                authorizationEndpoint: AppConfig.instance.authorizationEndpoint,
+                tokenEndpoint: AppConfig.instance.tokenEndpoint,
+              ),
+              scopes: AppConfig.scopes,
+              // Nessun prompt esplicito: sia 'select_account' che 'login' hanno
+              // mostrato in test reale un ciclo silenzioso-poi-interattivo che
+              // si blocca (AADSTS50199 seguito da un retry interno che non
+              // completa il redirect verso l'app, o con 'login' un loop di
+              // richieste di credenziali). Si lascia che Azure AD scelga il
+              // proprio comportamento predefinito.
+            ),
+          )
+          // Senza timeout, un blocco della sessione di login (osservato in
+          // test reale su iOS: resta su "Accesso in corso..." a tempo
+          // indeterminato dopo il redirect) lascia l'utente bloccato senza
+          // alcun segnale d'errore.
+          .timeout(
+            const Duration(seconds: 25),
+            onTimeout: () => throw TimeoutException(
+              'Timeout: il login non si è completato entro 25 secondi.',
+            ),
+          );
 
-      if (result.accessToken == null) return false;
+      if (result.accessToken == null) {
+        lastErrorMessage = 'Nessun access token ricevuto dal login.';
+        return false;
+      }
 
       await _persistTokens(
         accessToken: result.accessToken!,
@@ -51,8 +73,8 @@ class AuthService {
         accessTokenExpirationDateTime: result.accessTokenExpirationDateTime,
       );
       return true;
-    } catch (_) {
-      // TODO: log strutturato dell'errore (fase di hardening successiva).
+    } catch (e) {
+      lastErrorMessage = e.toString();
       return false;
     }
   }
