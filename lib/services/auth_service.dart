@@ -29,10 +29,17 @@ class AuthService {
   /// tecnico utile in fase di test, non pensato per l'utente finale.
   String? lastErrorMessage;
 
+  /// Diagnostica temporanea: ogni riga loggata da un tentativo di login,
+  /// nell'ordine in cui accade, così LoginScreen può mostrarle tutte a
+  /// schermo senza bisogno di collegare il telefono a un computer. Svuotato
+  /// a ogni nuovo signIn().
+  static final List<String> debugLog = [];
+
   static void _log(String message) {
     // ignore: avoid_print
     print('[AUTH DEBUG] $message');
     developer.log(message, name: 'AuthService');
+    debugLog.add(message);
   }
 
   /// Avvia il login interattivo tramite il browser di sistema (Azure AD SSO).
@@ -47,6 +54,7 @@ class AuthService {
   /// una volta isolata la causa.
   Future<bool> signIn() async {
     lastErrorMessage = null;
+    debugLog.clear();
     try {
       _log('redirectUri="${AppConfig.instance.redirectUri}"');
       _log('1/2 — Avvio authorize() (autorizzazione + redirect)...');
