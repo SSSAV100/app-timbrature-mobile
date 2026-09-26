@@ -86,6 +86,24 @@
 I ruoli sono letti da BC (`GET /me`) ad ogni avvio, mai calcolati o
 salvati lato app.
 
+**Chi approva è definito sulla commessa, non sul dipendente** (ogni
+commessa può avere un responsabile diverso):
+
+- Standard, straordinario: campo `Capo Cantiere` (gruppo App Timbrature
+  della scheda commessa).
+- Service, lato Progetti: campo standard BC `Project Manager` /
+  Responsabile progetto (gruppo Generale della scheda commessa).
+- Commessa senza responsabile: si usa l'`Approvatore Predefinito` della
+  scheda dipendente; se manca anche quello, la riga resta senza
+  approvatore ed è decidibile solo in BC (pagina "Approvazione Ore").
+- L'approvatore viene fissato sulla riga ore al momento dell'invio
+  (campo `Approver User ID`): ognuno vede e decide solo le righe
+  assegnate a lui.
+- I ruoli `responsabileCantiere` / `responsabileProgetti` si ricavano da
+  lì: responsabile di almeno una commessa aperta del tipo corrispondente,
+  oppure righe in sospeso assegnate. Non esistono più spunte di ruolo
+  sulla scheda dipendente (tolte il 26.09.2026).
+
 ## 4. Insidie note (già scoperte e risolte — non re-indagare da zero)
 
 Ordinate per probabilità di essere la causa di un problema simile in futuro.

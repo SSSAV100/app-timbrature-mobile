@@ -330,7 +330,10 @@ per i ruoli d'ufficio che già lavorano dentro BC tutto il giorno.
 ### `GET /pendingApprovals`
 
 Restituisce le richieste in attesa dell'approvazione dell'utente
-corrente, in base ai suoi ruoli. Letta sempre live (nessuna coda offline
+corrente: solo quelle delle commesse di cui è responsabile (Capo Cantiere
+per le Standard, Responsabile progetto per le Service) o di cui è
+Approvatore Predefinito del dipendente. Vedi
+`docs/PROJECT_REFERENCE.md`, sezione 3.4. Letta sempre live (nessuna coda offline
 in lettura: una lista di approvazioni non aggiornata sarebbe più dannosa
 che utile).
 
