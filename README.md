@@ -107,7 +107,7 @@ L'app si aspetta che la tua estensione AL esponga alcune API personalizzate.
 Questo è il "contratto" tra app e BC — puoi implementarlo con qualunque
 logica interna, purché rispetti input/output descritti qui.
 
-### `GET /assignedProjects`
+### `GET /assignedProjects?$expand=tasks`
 
 Restituisce i progetti/cantieri assegnati all'utente autenticato
 (identificato dal token Azure AD ricevuto), con i relativi task/attività
@@ -136,7 +136,10 @@ annidati (usati dal modulo "Ore su progetti").
 ```
 
 `projectType` è `"Standard"` o `"Service"` (vedi specifica, sezione 5).
-`tasks` può essere una lista vuota se il progetto non ha task specifici.
+`tasks` arriva solo con `$expand=tasks` (sotto-pagina AL): senza, BC restituisce i
+progetti senza attività. Contiene solo le attività di tipo Registrazione. L'attività è
+obbligatoria per inviare ore (`POST /timeEntries` senza `taskId` viene rifiutato), quindi
+un progetto con `tasks` vuoto non può ricevere ore dall'app.
 
 ### `POST /timePunches`
 

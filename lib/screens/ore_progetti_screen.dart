@@ -275,7 +275,14 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
   @override
   void initState() {
     super.initState();
-    _selectedProject = widget.projects.first;
+    _selectProject(widget.projects.first);
+  }
+
+  // Con una sola attività registrabile la si preseleziona.
+  void _selectProject(Project? project) {
+    _selectedProject = project;
+    final tasks = project?.tasks ?? const [];
+    _selectedTask = tasks.length == 1 ? tasks.first : null;
   }
 
   @override
@@ -289,6 +296,19 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
   bool get _isService => _selectedProject?.type == ProjectType.service;
 
   void _save() {
+    // L'attività è obbligatoria: la registrazione sul registro commesse di
+    // BC richiede il "Job Task No.".
+    if (_selectedTask == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text((_selectedProject?.tasks ?? const []).isEmpty
+              ? 'Questo progetto non ha attività su cui registrare ore: contatta l\'ufficio.'
+              : 'Seleziona l\'attività del progetto.'),
+        ),
+      );
+      return;
+    }
+
     final hoursWorked = double.tryParse(_hoursWorkedController.text.replaceAll(',', '.'));
     if (_selectedProject == null || hoursWorked == null || hoursWorked <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -346,22 +366,28 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
               items: widget.projects
                   .map((p) => DropdownMenuItem(value: p, child: Text(p.description)))
                   .toList(),
-              onChanged: (p) => setState(() {
-                _selectedProject = p;
-                _selectedTask = null;
-              }),
+              onChanged: (p) => setState(() => _selectProject(p)),
             ),
             const SizedBox(height: 12),
-            if (tasks.isNotEmpty)
-              DropdownButtonFormField<ProjectTask>(
-                initialValue: _selectedTask,
-                decoration: const InputDecoration(labelText: 'Task/attività (opzionale)'),
-                items: tasks
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t.description)))
-                    .toList(),
-                onChanged: (t) => setState(() => _selectedTask = t),
+            // Key legata al progetto: cambiando progetto il campo si
+            // ricrea e riparte dall'attività preselezionata (o vuoto).
+            DropdownButtonFormField<ProjectTask>(
+              key: ValueKey(_selectedProject?.id),
+              initialValue: _selectedTask,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Attività',
+                errorText: tasks.isEmpty ? 'Nessuna attività registrabile su questo progetto' : null,
               ),
-            if (tasks.isNotEmpty) const SizedBox(height: 12),
+              items: tasks
+                  .map((t) => DropdownMenuItem(
+                        value: t,
+                        child: Text('${t.id} · ${t.description}', overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              onChanged: (t) => setState(() => _selectedTask = t),
+            ),
+            const SizedBox(height: 12),
 
             if (_isService) ...[
               // Progetto Service: le ore da caricare sul progetto/fattura

@@ -39,9 +39,12 @@ class BcApiService {
 
   /// Recupera i progetti/cantieri assegnati all'utente corrente, con i
   /// relativi task/attività annidati.
+  /// `$expand=tasks` è obbligatorio: BC include le sotto-pagine (part AL
+  /// "tasks") nella risposta solo se richieste esplicitamente, altrimenti
+  /// ogni progetto arriva senza attività.
   Future<List<Project>> fetchAssignedProjects() async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/assignedProjects');
+    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/assignedProjects?\$expand=tasks');
 
     final response = await http.get(uri, headers: headers);
     _throwIfNotOk(response);
