@@ -50,7 +50,8 @@ flutter run --release             # si apre dall'icona senza Mac
 
 ## Diagnostica
 
-- Log temporanei con prefisso `[… DEBUG]` via `print` (visibili in `flutter run`).
-  `lib/screens/home_screen.dart` ha ancora i log `[HOME DEBUG]`.
+- Log temporanei con prefisso `[… DEBUG]` via `print` (visibili in `flutter run`), da
+  togliere a problema risolto. Al momento non ce ne sono: gli errori restano tracciati
+  con `developer.log`.
 - I log nativi iOS (NSLog) non compaiono in `flutter run`: servono
   `sudo log collect --device-udid <udid>` e `log show`.

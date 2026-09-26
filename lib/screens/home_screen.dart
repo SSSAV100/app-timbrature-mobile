@@ -79,8 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _pendingApprovalsCount = approvals.length);
       }
     } catch (e, stackTrace) {
-      // ignore: avoid_print
-      print('[HOME DEBUG] fetchCurrentUser/fetchPendingApprovals fallita: $e');
       developer.log('fetchCurrentUser fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
       // Nessun ruolo rilevato: la piastrella Approvazioni resta nascosta.
     }
@@ -98,8 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _selectedProject = projects.isNotEmpty ? projects.first : null;
       });
     } catch (e, stackTrace) {
-      // ignore: avoid_print
-      print('[HOME DEBUG] fetchAssignedProjects fallita: $e');
       developer.log('fetchAssignedProjects fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
       setState(() {
         _loadError =
