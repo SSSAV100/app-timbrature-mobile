@@ -191,6 +191,14 @@ Ordinate per probabilità di essere la causa di un problema simile in futuro.
     è enormemente più veloce che indovinare da log parziali o build
     ripetute in cloud.
 
+13. **Trigger delle pagine API AL: `exit(false)` se l'Insert/Modify lo fai tu.**
+    In `OnInsertRecord`, dopo un `Rec.Insert(true)` manuale (necessario per
+    avere l'`Entry No.` AutoIncrement prima della logica), il trigger deve
+    restituire `false`: con `true` BC inserisce di nuovo lo stesso record e
+    risponde 400 *"The record in table … already exists"*. Stessa regola per
+    `OnModifyRecord` quando la logica salva già la riga. Senza Insert/Modify
+    manuale, non mettere `exit`: il valore predefinito lascia fare a BC.
+
 ## 5. Contratto API — endpoint implementati
 
 Base URL: `https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/api/{publisher}/{group}/{version}/companies({companyId})/...`
