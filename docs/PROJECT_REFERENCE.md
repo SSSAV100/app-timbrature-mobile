@@ -247,14 +247,10 @@ Flutter, sezione 4.
 - Ruoli e Approvazioni (schermata in app per responsabile Cantiere/Progetti)
 - Bollettino (in fase di test dopo il fix del campo `photos`)
 
-**In test (26.09.2026):**
-- Ore su progetti Standard: invio, attività, straordinario e registrazione
-  sulla commessa funzionano. **Aperto:** la riga nel giornale SwissSalary
-  fallisce con *"Journal is in posting."* (messaggio di SwissSalary, non
-  di BC). Non dipende da come si registra la commessa (provato con 1012 e
-  1013). Da verificare: inserimento manuale nel giornale SwissSalary
-  `APPTIMBR`, campo "Payroll Log" del batch, eventualmente supporto
-  SwissSalary.
+**Verificato end-to-end (26.09.2026):**
+- Ore su progetti Standard: dall'app alla commessa (movimento) e al giornale
+  SwissSalary `APPTIMBR`, riga "Registrata". L'errore SwissSalary *"Journal
+  is in posting."* dipendeva dallo stato del giornale in BC, non dal codice.
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
