@@ -44,8 +44,11 @@ flutter run --release             # si apre dall'icona senza Mac
 - iOS usa **Swift Package Manager**, non CocoaPods: non c'è `Podfile`, `pod install` non serve.
 - Firma: team `26QXZ9GKV3` (Salary Solution SA), firma automatica.
 - In debug su iOS 14+ l'app si avvia solo da `flutter run` (toccare l'icona dà errore).
-- Xcode, se aperto, riformatta `ios/Runner/Base.lproj/Main.storyboard`: non committarlo,
-  `git checkout -- ios/Runner/Base.lproj/Main.storyboard`.
+- Xcode aperto, ma anche `flutter build ios`, riformatta `ios/Runner/Base.lproj/Main.storyboard`:
+  non committarlo, `git checkout -- ios/Runner/Base.lproj/Main.storyboard`.
+- Installare la release sull'iPhone senza perdere login e dati locali: `flutter build ios --release`,
+  poi `xcrun devicectl device install app --device <udid> build/ios/iphoneos/Runner.app`.
+  `flutter install` invece disinstalla prima la versione vecchia (dati locali persi).
 - Distribuzione ai colleghi via TestFlight con Codemagic (`codemagic.yaml`).
 
 ## Diagnostica
