@@ -67,6 +67,16 @@
 - Note spese: importo sempre in **CHF**, ricevuta fotografata **obbligatoria**.
 - Nessun flusso di approvazione implementato per questi tre moduli (per scelta esplicita, per ora si raccoglie e si invia).
 
+### 3.2b Registrazione delle ore
+
+- Ore Standard entro l'orario contrattuale giornaliero: registrate subito;
+  oltre: straordinario, in approvazione al Capo Cantiere della commessa.
+- Tutte le ore dall'app vanno sulla commessa con **Tipo riga = Budget e
+  fatturabile** (scelta del cliente, 26.09.2026).
+- Attività (Job Task) obbligatoria su ogni riga ore.
+- Lato stipendio: riga nel giornale SwissSalary `APPTIMBR`, tipo salario
+  da "Setup App Timbrature" (8980 per le ore lavorate).
+
 ### 3.3 Trasferta (calcolo distanza)
 
 - L'app cattura **solo un punto GPS** al momento della timbratura (non tracciamento continuo).
@@ -199,6 +209,14 @@ Ordinate per probabilità di essere la causa di un problema simile in futuro.
     `OnModifyRecord` quando la logica salva già la riga. Senza Insert/Modify
     manuale, non mettere `exit`: il valore predefinito lascia fare a BC.
 
+14. **Registrare sul giornale commesse da API: `Job Jnl.-Post Batch` (1013).**
+    `Job Jnl.-Post` (1021) chiede sempre "Registrare le righe?" (il suo
+    `SetHideDialog` nasconde solo il messaggio finale, verificato sul
+    sorgente BaseApp) e da API ogni Confirm/Message è l'errore *"Client
+    callbacks are not supported"*. Usare la 1013 con `SetRecFilter` sulla
+    riga e `SetSuppressCommit(true)`. Inoltre, sulle commesse con "Apply
+    Usage Link", il "Tipo riga" va compilato, altrimenti BC chiede conferma.
+
 ## 5. Contratto API — endpoint implementati
 
 Base URL: `https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/api/{publisher}/{group}/{version}/companies({companyId})/...`
@@ -228,6 +246,15 @@ Flutter, sezione 4.
 - Ferie, Assenze, Note spese
 - Ruoli e Approvazioni (schermata in app per responsabile Cantiere/Progetti)
 - Bollettino (in fase di test dopo il fix del campo `photos`)
+
+**In test (26.09.2026):**
+- Ore su progetti Standard: invio, attività, straordinario e registrazione
+  sulla commessa funzionano. **Aperto:** la riga nel giornale SwissSalary
+  fallisce con *"Journal is in posting."* (messaggio di SwissSalary, non
+  di BC). Non dipende da come si registra la commessa (provato con 1012 e
+  1013). Da verificare: inserimento manuale nel giornale SwissSalary
+  `APPTIMBR`, campo "Payroll Log" del batch, eventualmente supporto
+  SwissSalary.
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
