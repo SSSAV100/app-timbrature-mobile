@@ -109,9 +109,10 @@ logica interna, purché rispetti input/output descritti qui.
 
 ### `GET /assignedProjects?$expand=tasks`
 
-Restituisce i progetti/cantieri assegnati all'utente autenticato
-(identificato dal token Azure AD ricevuto), con i relativi task/attività
-annidati (usati dal modulo "Ore su progetti").
+Restituisce **tutti** i progetti/cantieri aperti in BC, uguali per tutti
+i dipendenti (nessun filtro per utente, per scelta del cliente: il nome
+"assigned" è storico), con i relativi task/attività annidati (usati dal
+modulo "Ore su progetti").
 
 ```json
 {
