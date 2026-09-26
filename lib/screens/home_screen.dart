@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -77,7 +78,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final approvals = await BcApiService.instance.fetchPendingApprovals();
         setState(() => _pendingApprovalsCount = approvals.length);
       }
-    } catch (_) {
+    } catch (e, stackTrace) {
+      // ignore: avoid_print
+      print('[HOME DEBUG] fetchCurrentUser/fetchPendingApprovals fallita: $e');
+      developer.log('fetchCurrentUser fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
       // Nessun ruolo rilevato: la piastrella Approvazioni resta nascosta.
     }
   }
@@ -93,7 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _projects = projects;
         _selectedProject = projects.isNotEmpty ? projects.first : null;
       });
-    } catch (_) {
+    } catch (e, stackTrace) {
+      // ignore: avoid_print
+      print('[HOME DEBUG] fetchAssignedProjects fallita: $e');
+      developer.log('fetchAssignedProjects fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
       setState(() {
         _loadError =
             'Impossibile aggiornare l\'elenco cantieri (verifica la connessione).';

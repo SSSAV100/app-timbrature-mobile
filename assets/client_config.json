@@ -6,6 +6,7 @@
   "azureClientId": "866f42f3-3ead-490a-a931-2b9947523bfd",
   "redirectUri": "msauth.com.salarysolution.appTimbrature://auth/",
   "bcEnvironment": "VTE_Sandbox",
+  "bcCompanyId": "9deb824e-1a8e-f011-b419-00224861978d",
   "customApiPublisher": "salarysolution",
   "customApiGroup": "timbrature",
   "customApiVersion": "v1.0"

@@ -17,6 +17,7 @@ class AppConfig {
     required this.azureClientId,
     required this.redirectUri,
     required this.bcEnvironment,
+    required this.bcCompanyId,
     required this.customApiPublisher,
     required this.customApiGroup,
     required this.customApiVersion,
@@ -27,13 +28,9 @@ class AppConfig {
   final String primaryColorHex;
   final String azureTenantId;
   final String azureClientId;
-  /// Redirect URI, unico e condiviso da Android e iOS: msauth.<bundle-id>://auth
-  /// (convenzione ufficiale Microsoft per app mobile). Uno schema "msauth"
-  /// nudo (senza bundle ID) viene rifiutato da Apple in pubblicazione
-  /// (errore ITMS-90155, "Disallowed URL schemes") e comunque non è quanto
-  /// si aspettano le librerie MSAL/AppAuth sul dispositivo.
   final String redirectUri;
   final String bcEnvironment;
+  final String bcCompanyId;
   final String customApiPublisher;
   final String customApiGroup;
   final String customApiVersion;
@@ -69,6 +66,7 @@ class AppConfig {
       azureClientId: json['azureClientId'] as String,
       redirectUri: json['redirectUri'] as String,
       bcEnvironment: json['bcEnvironment'] as String,
+      bcCompanyId: json['bcCompanyId'] as String,
       customApiPublisher: json['customApiPublisher'] as String,
       customApiGroup: json['customApiGroup'] as String,
       customApiVersion: json['customApiVersion'] as String,
@@ -92,9 +90,23 @@ class AppConfig {
   String get tokenEndpoint =>
       'https://login.microsoftonline.com/$azureTenantId/oauth2/v2.0/token';
 
-  /// Base URL delle API custom AL usate da questa app. Esempio risultante:
-  /// https://api.businesscentral.dynamics.com/v2.0/<tenant>/Sandbox/api/nomeazienda/timbrature/v1.0
+  /// Base URL delle API custom AL usate da questa app.
+  ///
+  /// Include il segmento `companies({id})`, obbligatorio in Business
+  /// Central per qualunque API (standard o personalizzata): senza,
+  /// BC risponde 404 "Resource not found" perché cerca la risorsa
+  /// (es. "me", "assignedProjects") alla radice, dove esiste solo
+  /// l'entità companies.
+  ///
+  /// Esempio risultante:
+  /// https://api.businesscentral.dynamics.com/v2.0/<tenant>/Sandbox/api/nomeazienda/timbrature/v1.0/companies(<id>)
+  ///
+  /// Come trovare l'ID società: chiamare, con lo stesso token, l'endpoint
+  /// standard (sempre disponibile, non serve l'estensione custom)
+  /// GET https://api.businesscentral.dynamics.com/v2.0/<tenant>/<environment>/api/v2.0/companies
+  /// e leggere il campo "id" (un GUID) della società desiderata.
   String get customApiBaseUrl =>
       'https://api.businesscentral.dynamics.com/v2.0/$azureTenantId/'
-      '$bcEnvironment/api/$customApiPublisher/$customApiGroup/$customApiVersion';
+      '$bcEnvironment/api/$customApiPublisher/$customApiGroup/$customApiVersion/'
+      'companies($bcCompanyId)';
 }
