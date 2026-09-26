@@ -9,6 +9,9 @@ note spese e approvazioni. Parla direttamente con le API AL custom di Business C
 - Questa repo: `~/dev/app_timbrature`, GitHub `SSSAV100/app-timbrature-mobile`, branch `main`.
 - Backend AL: `~/dev/SALARY SOLUTION - App Timbrature` (Azure DevOps). Ha un suo `CLAUDE.md`.
 - Si lavora **solo da questo Mac** (VS Code + Claude Code), per entrambi i progetti.
+- Riferimento tecnico completo (architettura, regole di business, ruoli, insidie già
+  risolte, stato moduli): `docs/PROJECT_REFERENCE.md`. Leggerlo prima di toccare login,
+  API BC o approvazioni.
 
 ## Configurazione runtime
 
