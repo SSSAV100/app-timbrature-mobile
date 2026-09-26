@@ -15,13 +15,11 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
-  List<String> _debugLines = [];
 
   Future<void> _handleSignIn() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _debugLines = [];
     });
 
     final success = await AuthService.instance.signIn();
@@ -40,10 +38,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = detail == null
           ? 'Accesso non riuscito. Riprova.'
           : 'Accesso non riuscito: $detail';
-      // Diagnostica temporanea: l'intera sequenza di log del tentativo
-      // (1/2 avviato, completato, 2/2 avviato, ecc.), per leggerla
-      // direttamente sullo schermo senza collegare il telefono a un PC.
-      _debugLines = List.of(AuthService.debugLog);
       _isLoading = false;
     });
   }
@@ -123,21 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     _errorMessage!,
                     style: const TextStyle(color: AppColors.danger, fontSize: 13),
                     textAlign: TextAlign.center,
-                  ),
-                ],
-                if (_debugLines.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: SelectableText(
-                      _debugLines.join('\n'),
-                      style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
-                    ),
                   ),
                 ],
               ],

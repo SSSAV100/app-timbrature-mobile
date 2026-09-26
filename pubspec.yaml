@@ -27,7 +27,7 @@ dependencies:
   # richiesto l'aggiornamento dalla 6.x in origine. Non aggiornare a 12.x
   # senza aver prima verificato che il problema iOS sia stato risolto a
   # monte nel plugin.
-  flutter_appauth: ^11.0.0
+  flutter_appauth: ^12.0.2
   # Conservazione sicura dei token di accesso sul dispositivo.
   flutter_secure_storage: ^11.0.0
 
