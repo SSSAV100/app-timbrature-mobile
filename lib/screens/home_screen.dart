@@ -98,8 +98,11 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e, stackTrace) {
       developer.log('fetchAssignedProjects fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
       setState(() {
-        _loadError =
-            'Impossibile aggiornare l\'elenco cantieri (verifica la connessione).';
+        // Errore restituito da BC: lo si mostra per intero, altrimenti
+        // non si distingue da un problema di rete.
+        _loadError = e is BcApiException
+            ? 'Impossibile aggiornare l\'elenco cantieri. $e'
+            : 'Impossibile aggiornare l\'elenco cantieri (verifica la connessione).';
       });
     } finally {
       setState(() => _isLoadingProjects = false);

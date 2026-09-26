@@ -37,23 +37,39 @@ class BcApiService {
     };
   }
 
-  /// Recupera i progetti/cantieri assegnati all'utente corrente, con i
-  /// relativi task/attività annidati.
-  /// `$expand=tasks` è obbligatorio: BC include le sotto-pagine (part AL
-  /// "tasks") nella risposta solo se richieste esplicitamente, altrimenti
-  /// ogni progetto arriva senza attività.
+  /// Recupera tutte le commesse aperte (visibili a tutti i dipendenti) con
+  /// le relative attività di tipo Registrazione.
+  /// Le attività si leggono con una seconda chiamata a /assignedJobTasks
+  /// (la sotto-pagina AL, esposta anche come endpoint a sé) e si abbinano
+  /// qui per projectId: più semplice e prevedibile di `$expand=tasks`, che
+  /// su questa pagina BC rifiutava (26.09.2026).
   Future<List<Project>> fetchAssignedProjects() async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/assignedProjects?\$expand=tasks');
+    final base = AppConfig.instance.customApiBaseUrl;
 
-    final response = await http.get(uri, headers: headers);
-    _throwIfNotOk(response);
+    final responses = await Future.wait([
+      http.get(Uri.parse('$base/assignedProjects'), headers: headers),
+      http.get(Uri.parse('$base/assignedJobTasks'), headers: headers),
+    ]);
+    for (final response in responses) {
+      _throwIfNotOk(response);
+    }
 
+    final tasksByProject = <String, List<Map<String, dynamic>>>{};
+    for (final e in _values(responses[1])) {
+      final projectId = e['projectId'] as String? ?? '';
+      tasksByProject.putIfAbsent(projectId, () => []).add(e);
+    }
+
+    return _values(responses[0]).map((e) {
+      final projectId = e['id'] as String? ?? '';
+      return Project.fromJson({...e, 'tasks': tasksByProject[projectId] ?? const []});
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _values(http.Response response) {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final items = (body['value'] as List<dynamic>? ?? []);
-    return items
-        .map((e) => Project.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (body['value'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
   }
 
   /// Invia una singola timbratura a Business Central.

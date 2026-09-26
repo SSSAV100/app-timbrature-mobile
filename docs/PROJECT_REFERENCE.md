@@ -198,7 +198,7 @@ Base URL: `https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/
 | Metodo | Endpoint | Scopo |
 |---|---|---|
 | GET | `/me` | Utente corrente + ruoli (CSV) |
-| GET | `/assignedProjects?$expand=tasks` | Tutte le commesse aperte (visibili a tutti, nessun filtro per dipendente), con attività di tipo Registrazione e `projectType` (Standard/Service). Senza `$expand` le attività non arrivano |
+| GET | `/assignedProjects` + `/assignedJobTasks` | Tutte le commesse aperte (visibili a tutti, nessun filtro per dipendente) con `projectType` (Standard/Service); le attività di tipo Registrazione arrivano dalla seconda chiamata e l'app le abbina per `projectId` |
 | POST | `/timePunches` | Timbratura (entrata/uscita/pausa), con GPS opzionale |
 | POST | `/timeEntries` | Riga ore: `hoursWorked` + `hoursBillable` (uguali per Standard, distinti per Service) |
 | POST | `/serviceReports` | Bollettino: materiali, `photos` (array di `{photoBase64}`), firme base64 |
