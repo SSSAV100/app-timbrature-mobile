@@ -60,6 +60,18 @@ class TimeEntryTile extends StatelessWidget {
                       style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ),
+                // Errore restituito da BC all'ultimo invio: la riga resta
+                // sul telefono e viene ritentata alla prossima sincronizzazione.
+                if (entry.status == SyncStatus.failed && entry.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      entry.errorMessage!,
+                      style: const TextStyle(fontSize: 11, color: AppColors.danger),
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -81,7 +93,7 @@ class TimeEntryTile extends StatelessWidget {
                   '${entry.hoursWorked.toStringAsFixed(2)} h',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-          if (onDelete != null && entry.status == SyncStatus.pending) ...[
+          if (onDelete != null && entry.status != SyncStatus.synced) ...[
             const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),

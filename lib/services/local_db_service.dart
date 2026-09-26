@@ -239,12 +239,14 @@ class LocalDbService {
     );
   }
 
+  /// Righe da inviare: in attesa e fallite (ritentate a ogni sincronizzazione,
+  /// l'errore dell'ultimo tentativo resta visibile sulla riga).
   Future<List<TimeEntry>> getPendingTimeEntries() async {
     final db = await database;
     final rows = await db.query(
       'pending_time_entries',
-      where: 'status = ?',
-      whereArgs: [SyncStatus.pending.name],
+      where: 'status IN (?, ?)',
+      whereArgs: [SyncStatus.pending.name, SyncStatus.failed.name],
     );
     return rows.map(TimeEntry.fromDbMap).toList();
   }

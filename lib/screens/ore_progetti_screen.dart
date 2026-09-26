@@ -34,6 +34,8 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   void initState() {
     super.initState();
     _loadEverything();
+    // Ritenta subito le righe rimaste in coda o fallite.
+    SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
   }
 
   Future<void> _loadEverything() async {
