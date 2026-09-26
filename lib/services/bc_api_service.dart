@@ -125,14 +125,14 @@ class BcApiService {
 
   /// Legge il saldo ferie/permessi residuo dell'utente, espresso in ore
   /// (vedi specifica funzionale, sezione 8: tutto è gestito in ore, non in
-  /// giorni). Endpoint atteso: GET {customApiBaseUrl}/vacationBalance
+  /// giorni). Endpoint atteso: GET {customApiBaseUrl}/vacationBalances
   /// Come tutte le altre API GET di questo progetto, la risposta segue la
   /// convenzione standard delle API page di Business Central: un oggetto
   /// "value" contenente un array (qui con un solo elemento, il saldo
   /// dell'utente corrente).
   Future<double> fetchVacationBalanceHours() async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/vacationBalance');
+    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/vacationBalances');
 
     final response = await http.get(uri, headers: headers);
     _throwIfNotOk(response);
