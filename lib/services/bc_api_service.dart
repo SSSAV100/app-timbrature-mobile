@@ -113,7 +113,8 @@ class BcApiService {
       'endTime': bollettino.endTime.toUtc().toIso8601String(),
       'description': bollettino.description,
       'materials': bollettino.materials.map((m) => m.toJson()).toList(),
-      'photosBase64': photosBase64,
+      // Parte AL "photos" (SS Service Report Photo API): una riga per foto.
+      'photos': photosBase64.map((p) => {'photoBase64': p}).toList(),
       'clientSignatureBase64': base64Encode(clientSignatureBytes),
       if (technicianSignatureBytes != null)
         'technicianSignatureBase64': base64Encode(technicianSignatureBytes),

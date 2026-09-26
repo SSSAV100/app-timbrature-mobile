@@ -213,13 +213,17 @@ Payload inviato dall'app:
   "materials": [
     { "description": "Pompa circolazione 25-60", "quantity": 1 }
   ],
-  "photosBase64": ["<stringa base64 jpg>", "<stringa base64 jpg>"],
+  "photos": [
+    { "photoBase64": "<stringa base64 jpg>" },
+    { "photoBase64": "<stringa base64 jpg>" }
+  ],
   "clientSignatureBase64": "<stringa base64 png>",
   "technicianSignatureBase64": "<stringa base64 png, opzionale>"
 }
 ```
 
-`materials` e `photosBase64` possono essere array vuoti. L'app genera già
+`materials` e `photos` possono essere array vuoti. Sono le parti (deep insert) `materials` e
+`photos` della pagina AL `SS Service Report API`: i nomi devono coincidere con quelli delle parti. L'app genera già
 in locale un PDF del bollettino (con firma inclusa) che condivide
 immediatamente sul dispositivo del tecnico (email, WhatsApp, ecc. tramite
 il pannello di condivisione nativo): la copia ufficiale/di sistema resta
