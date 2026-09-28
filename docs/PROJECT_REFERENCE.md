@@ -51,6 +51,13 @@
 
 ### 3.1 Due tipi di progetto, comportamento diverso
 
+> **Service in sospeso (28.09.2026).** In BC la parte Service vive su
+> tabelle diverse da Job/Job Task, sia per i progetti sia per le
+> registrazioni ore. L'implementazione attuale (commesse Job con `Tipo
+> Commessa` = Service, `Project Manager` come approvatore, ore su Job
+> Journal) va rivista quando arrivano i dettagli esatti: per ora non
+> testarla e non estenderla.
+
 | | Standard (Cantieri/Acquedotti) | Service |
 |---|---|---|
 | Appuntamenti | Nessuno: il dipendente sceglie da solo il progetto | Ricevuti da BC (**non ancora implementato in app**) |
