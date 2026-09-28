@@ -44,6 +44,33 @@ class BcApiService {
   /// qui per projectId: più semplice e prevedibile di `$expand=tasks`, che
   /// su questa pagina BC rifiutava (26.09.2026).
   Future<List<Project>> fetchAssignedProjects() async {
+    try {
+      final merged = await _fetchProjectsWithTasks();
+      // Copia locale per lavorare offline (timbrature e ore in cantiere
+      // senza rete): l'ultimo elenco letto da BC.
+      await LocalFiles.writeCache(_projectsCacheFile, jsonEncode(merged));
+      projectsFromCache = false;
+      return merged.map(Project.fromJson).toList();
+    } on BcApiException {
+      // Errore di BC (es. 400/500): va mostrato, non nascosto dalla cache.
+      rethrow;
+    } catch (_) {
+      // Rete assente o token non rinnovabile offline: ultimo elenco salvato.
+      final cached = await LocalFiles.readCache(_projectsCacheFile);
+      if (cached == null) rethrow;
+      projectsFromCache = true;
+      return (jsonDecode(cached) as List<dynamic>)
+          .map((e) => Project.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+  }
+
+  /// True se l'ultimo [fetchAssignedProjects] ha restituito la copia locale
+  /// perché BC non era raggiungibile.
+  bool projectsFromCache = false;
+  static const _projectsCacheFile = 'assigned_projects.json';
+
+  Future<List<Map<String, dynamic>>> _fetchProjectsWithTasks() async {
     final headers = await _authHeaders();
     final base = AppConfig.instance.customApiBaseUrl;
 
@@ -63,7 +90,7 @@ class BcApiService {
 
     return _values(responses[0]).map((e) {
       final projectId = e['id'] as String? ?? '';
-      return Project.fromJson({...e, 'tasks': tasksByProject[projectId] ?? const []});
+      return {...e, 'tasks': tasksByProject[projectId] ?? const []};
     }).toList();
   }
 

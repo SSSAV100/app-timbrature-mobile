@@ -32,4 +32,26 @@ class LocalFiles {
   }
 
   static Future<Uint8List> readBytes(String path) => File(path).readAsBytes();
+
+  /// Copia locale di dati letti da BC (es. elenco commesse), per usarli
+  /// anche senza rete. Restituisce null se non è mai stata salvata.
+  static Future<String?> readCache(String name) async {
+    final file = await _cacheFile(name);
+    if (!await file.exists()) return null;
+    return file.readAsString();
+  }
+
+  static Future<void> writeCache(String name, String content) async {
+    final file = await _cacheFile(name);
+    await file.writeAsString(content, flush: true);
+  }
+
+  static Future<File> _cacheFile(String name) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final cacheDir = Directory(p.join(dir.path, 'cache'));
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
+    }
+    return File(p.join(cacheDir.path, name));
+  }
 }

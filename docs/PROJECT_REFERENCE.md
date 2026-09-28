@@ -39,7 +39,7 @@
 | Framework | Flutter | Codebase unica iOS/Android |
 | Login | `flutter_appauth` **12.x o successivo** | Vedi sezione 4: la 11.x manca del supporto UIScene, causa blocchi silenziosi |
 | Storage sicuro token | `flutter_secure_storage` | Keychain iOS / Keystore Android |
-| Database locale (coda offline) | `sqflite` | Solo coda temporanea, MAI anagrafica: BC resta l'unica fonte di verità |
+| Database locale (coda offline) | `sqflite` | Coda temporanea di ciò che va inviato; BC resta l'unica fonte di verità. Unica copia locale di dati BC: l'ultimo elenco commesse/attività (`cache/assigned_projects.json`), usato solo senza rete per poter timbrare e registrare ore offline |
 | Geolocalizzazione | `geolocator` | Un solo punto GPS per timbratura, permesso "quando in uso", mai tracciamento continuo |
 | Foto | `image_picker` | Fotocamera o galleria |
 | Firma su schermo | `signature` | Solo per il bollettino Service |

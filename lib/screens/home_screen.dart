@@ -91,9 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     try {
       final projects = await BcApiService.instance.fetchAssignedProjects();
+      final fromCache = BcApiService.instance.projectsFromCache;
       setState(() {
         _projects = projects;
         _selectedProject = projects.isNotEmpty ? projects.first : null;
+        if (fromCache) {
+          _loadError = 'Offline: elenco cantieri dell\'ultimo aggiornamento. '
+              'Timbrature e ore vengono inviate al ritorno della rete.';
+        }
       });
     } catch (e, stackTrace) {
       developer.log('fetchAssignedProjects fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);

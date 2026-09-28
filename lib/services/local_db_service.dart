@@ -178,10 +178,11 @@ class LocalDbService {
 
   Future<List<TimesheetPunch>> getPendingPunches() async {
     final db = await database;
+    // In attesa e fallite: le fallite si ritentano a ogni sincronizzazione.
     final rows = await db.query(
       'pending_punches',
-      where: 'status = ?',
-      whereArgs: [SyncStatus.pending.name],
+      where: 'status IN (?, ?)',
+      whereArgs: [SyncStatus.pending.name, SyncStatus.failed.name],
       orderBy: 'timestamp ASC',
     );
     return rows.map(TimesheetPunch.fromDbMap).toList();
