@@ -258,6 +258,11 @@ Flutter, sezione 4.
 - Ore su progetti Standard: dall'app alla commessa (movimento) e al giornale
   SwissSalary `APPTIMBR`, riga "Registrata". L'errore SwissSalary *"Journal
   is in posting."* dipendeva dallo stato del giornale in BC, non dal codice.
+- Approvazione in app dello straordinario Standard (Capo Cantiere della
+  commessa), con registrazione automatica dopo l'approvazione.
+- Pagina BC "Righe Ore App Timbrature" con azione "Registra di nuovo" per
+  le righe in "Errore Registrazione" (riparte dal passo fallito, nessuna
+  doppia registrazione).
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
