@@ -282,6 +282,8 @@ Flutter, sezione 4.
 - Note spese con commessa: attività obbligatoria (SwissSalary la vuole),
   importo come Quantità 1 × Tasso. Allegati visibili in BC con "Mostra
   ricevuta" / "Mostra allegato" nelle due pagine.
+- Offline: timbratura e riga ore in modalità aereo, inviate da sole al
+  ritorno della rete (elenco commesse dalla copia locale).
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
