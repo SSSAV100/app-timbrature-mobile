@@ -279,6 +279,9 @@ Flutter, sezione 4.
   inviati in base64 e decodificati in AL nel Blob, righe SwissSalary con
   data e quantità/importo; pagine BC "Ferie e Assenze App Timbrature" e
   "Note Spese App Timbrature" con "Registra di nuovo" (28.09.2026).
+- Note spese con commessa: attività obbligatoria (SwissSalary la vuole),
+  importo come Quantità 1 × Tasso. Allegati visibili in BC con "Mostra
+  ricevuta" / "Mostra allegato" nelle due pagine.
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
