@@ -224,6 +224,18 @@ Ordinate per probabilità di essere la causa di un problema simile in futuro.
     riga e `SetSuppressCommit(true)`. Inoltre, sulle commesse con "Apply
     Usage Link", il "Tipo riga" va compilato, altrimenti BC chiede conferma.
 
+15. **Tipi salario SwissSalary: i flag del tipo salario contano.** Il
+    giornale accetta solo tipi non Fittizi, non Bloccati e non bloccati per
+    il codice salario del dipendente (nella Demo l'8600 Ferie era bloccato).
+    Con "Debit Cost Center blocked" la riga non può avere la commessa (la
+    commessa porta il centro di costo): "The cost center field is blocked
+    for this salary type". Il codice AL salta commessa/testo se bloccati.
+
+16. **Allegati via API: testo base64 decodificato in AL.** Nelle pagine
+    API il campo è una variabile `Text`, convertita in `OnInsertRecord` con
+    `Base64 Convert` nel Blob. Il Blob esposto direttamente non si riempiva
+    (malattia e note spese rifiutate con "allegato obbligatorio").
+
 ## 5. Contratto API — endpoint implementati
 
 Base URL: `https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/api/{publisher}/{group}/{version}/companies({companyId})/...`
@@ -263,6 +275,10 @@ Flutter, sezione 4.
 - Pagina BC "Righe Ore App Timbrature" con azione "Registra di nuovo" per
   le righe in "Errore Registrazione" (riparte dal passo fallito, nessuna
   doppia registrazione).
+- Ferie, malattia (con certificato) e note spese (con ricevuta): allegati
+  inviati in base64 e decodificati in AL nel Blob, righe SwissSalary con
+  data e quantità/importo; pagine BC "Ferie e Assenze App Timbrature" e
+  "Note Spese App Timbrature" con "Registra di nuovo" (28.09.2026).
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
