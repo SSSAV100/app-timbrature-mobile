@@ -29,7 +29,7 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
@@ -56,6 +56,11 @@ class LocalDbService {
           // Aggiunge la distinzione ore stipendio / ore fatturabili al
           // progetto (solo per i progetti Service, vedi TimeEntry).
           await db.execute('ALTER TABLE pending_time_entries ADD COLUMN hours_billable REAL');
+        }
+        if (oldVersion < 7) {
+          // Attività della commessa sulla nota spesa (SwissSalary la
+          // richiede quando c'è la commessa).
+          await db.execute('ALTER TABLE pending_note_spese ADD COLUMN task_id TEXT');
         }
       },
     );
@@ -139,6 +144,7 @@ class LocalDbService {
         amount_chf REAL NOT NULL,
         description TEXT,
         project_id TEXT,
+        task_id TEXT,
         receipt_path TEXT NOT NULL,
         status TEXT NOT NULL,
         error_message TEXT

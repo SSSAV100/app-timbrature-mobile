@@ -297,13 +297,16 @@ specifica funzionale, sezione 9). Importo sempre in franchi svizzeri
   "amountChf": 68.40,
   "description": "Rifornimento furgone aziendale",
   "projectId": "CANT-001",
+  "taskId": "1010",
   "receiptBase64": "<stringa base64 jpg>",
   "receiptFileName": "scontrino.jpg"
 }
 ```
 
 `category` può essere: `vitto`, `trasporto`, `carburante`, `alloggio`,
-`materiali`, `altro`. `description` e `projectId` sono opzionali.
+`materiali`, `altro`. `description` e `projectId` sono opzionali; se c'è
+`projectId` è obbligatorio anche `taskId` (attività della commessa):
+SwissSalary non accetta la riga spese con commessa senza attività.
 
 ### `GET /me`
 

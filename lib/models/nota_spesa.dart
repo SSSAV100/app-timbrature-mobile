@@ -25,6 +25,7 @@ class NotaSpesa {
   final double amountChf;
   final String? description;
   final String? projectId; // opzionale, se la spesa è imputabile a un progetto
+  final String? taskId; // obbligatoria se c'è projectId: SwissSalary vuole commessa + attività
   final String receiptPath; // percorso locale permanente, obbligatorio
   SyncStatus status;
   String? errorMessage;
@@ -37,6 +38,7 @@ class NotaSpesa {
     required this.receiptPath,
     this.description,
     this.projectId,
+    this.taskId,
     this.status = SyncStatus.pending,
     this.errorMessage,
   });
@@ -49,6 +51,7 @@ class NotaSpesa {
       'amount_chf': amountChf,
       'description': description,
       'project_id': projectId,
+      'task_id': taskId,
       'receipt_path': receiptPath,
       'status': status.name,
       'error_message': errorMessage,
@@ -63,6 +66,7 @@ class NotaSpesa {
       amountChf: (map['amount_chf'] as num).toDouble(),
       description: map['description'] as String?,
       projectId: map['project_id'] as String?,
+      taskId: map['task_id'] as String?,
       receiptPath: map['receipt_path'] as String,
       status: SyncStatus.values.byName(map['status'] as String),
       errorMessage: map['error_message'] as String?,

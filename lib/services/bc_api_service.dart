@@ -210,6 +210,7 @@ class BcApiService {
       'amountChf': nota.amountChf,
       if (nota.description != null && nota.description!.isNotEmpty) 'description': nota.description,
       if (nota.projectId != null) 'projectId': nota.projectId,
+      if (nota.taskId != null) 'taskId': nota.taskId,
       'receiptBase64': receiptBase64,
       'receiptFileName': nota.receiptPath.split('/').last,
     };

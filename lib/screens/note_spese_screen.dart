@@ -9,6 +9,7 @@ import '../core/local_files.dart';
 import '../core/theme.dart';
 import '../models/nota_spesa.dart';
 import '../models/project.dart';
+import '../models/project_task.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
@@ -194,6 +195,7 @@ class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
   NotaSpesaCategoria _category = NotaSpesaCategoria.vitto;
   DateTime _date = DateTime.now();
   Project? _selectedProject;
+  ProjectTask? _selectedTask;
   String? _receiptPath;
 
   @override
@@ -256,6 +258,18 @@ class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
       );
       return;
     }
+    // Con la commessa serve anche l'attività: SwissSalary rifiuta la riga
+    // spese con commessa senza "Job Task No.".
+    if (_selectedProject != null && _selectedTask == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_selectedProject!.tasks.isEmpty
+              ? 'Questo progetto non ha attività: scegli "Nessun progetto" o contatta l\'ufficio.'
+              : 'Seleziona l\'attività del progetto.'),
+        ),
+      );
+      return;
+    }
     if (_receiptPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Allega la foto della ricevuta.')),
@@ -270,6 +284,7 @@ class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
       amountChf: amount,
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       projectId: _selectedProject?.id,
+      taskId: _selectedTask?.id,
       receiptPath: _receiptPath!,
     );
 
@@ -317,16 +332,44 @@ class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
               decoration: const InputDecoration(labelText: 'Importo (CHF)'),
             ),
             const SizedBox(height: 12),
-            if (widget.projects.isNotEmpty)
-              DropdownButtonFormField<Project>(
+            if (widget.projects.isNotEmpty) ...[
+              DropdownButtonFormField<Project?>(
                 initialValue: _selectedProject,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Progetto (opzionale)'),
-                items: widget.projects
-                    .map((p) => DropdownMenuItem(value: p, child: Text(p.description)))
-                    .toList(),
-                onChanged: (p) => setState(() => _selectedProject = p),
+                items: [
+                  const DropdownMenuItem<Project?>(value: null, child: Text('Nessun progetto')),
+                  ...widget.projects.map((p) => DropdownMenuItem<Project?>(value: p, child: Text(p.description))),
+                ],
+                onChanged: (p) => setState(() {
+                  _selectedProject = p;
+                  final tasks = p?.tasks ?? const [];
+                  _selectedTask = tasks.length == 1 ? tasks.first : null;
+                }),
               ),
-            if (widget.projects.isNotEmpty) const SizedBox(height: 12),
+              const SizedBox(height: 12),
+              // Attività obbligatoria se c'è un progetto. Key legata al
+              // progetto: cambiandolo il campo riparte vuoto/preselezionato.
+              if (_selectedProject != null) ...[
+                DropdownButtonFormField<ProjectTask>(
+                  key: ValueKey(_selectedProject!.id),
+                  initialValue: _selectedTask,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Attività',
+                    errorText: _selectedProject!.tasks.isEmpty ? 'Nessuna attività su questo progetto' : null,
+                  ),
+                  items: _selectedProject!.tasks
+                      .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text('${t.id} · ${t.description}', overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (t) => setState(() => _selectedTask = t),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ],
             TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(labelText: 'Descrizione (opzionale)'),
