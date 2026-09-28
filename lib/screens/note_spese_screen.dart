@@ -9,6 +9,7 @@ import '../core/local_files.dart';
 import '../core/theme.dart';
 import '../models/nota_spesa.dart';
 import '../models/project.dart';
+import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
@@ -30,6 +31,8 @@ class _NoteSpeseScreenState extends State<NoteSpeseScreen> {
   void initState() {
     super.initState();
     _loadAll();
+    // Ritenta subito le note rimaste in coda o fallite.
+    SyncService.instance.syncAll().then((_) => mounted ? _loadAll() : null);
   }
 
   Future<void> _loadAll() async {
@@ -65,7 +68,7 @@ class _NoteSpeseScreenState extends State<NoteSpeseScreen> {
 
     await LocalDbService.instance.saveNotaSpesa(result);
     await _loadAll();
-    SyncService.instance.syncAll();
+    SyncService.instance.syncAll().then((_) => mounted ? _loadAll() : null);
   }
 
   double get _totalChf => _notes.fold(0.0, (sum, n) => sum + n.amountChf);
@@ -151,6 +154,18 @@ class _NoteSpeseScreenState extends State<NoteSpeseScreen> {
               children: [
                 Text(nota.category.label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 Text(dateFormat.format(nota.date), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                // Errore restituito da BC all'ultimo invio (ritentato alla
+                // prossima sincronizzazione).
+                if (nota.status == SyncStatus.failed && nota.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      nota.errorMessage!,
+                      style: const TextStyle(fontSize: 11, color: AppColors.danger),
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
               ],
             ),
           ),

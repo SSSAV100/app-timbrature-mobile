@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 
 import '../core/theme.dart';
 import '../models/assenza_request.dart';
+import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/sync_status_dot.dart';
 import 'assenza_form_screen.dart';
 
@@ -25,6 +27,8 @@ class _FerieAssenzeScreenState extends State<FerieAssenzeScreen> {
   void initState() {
     super.initState();
     _loadAll();
+    // Ritenta subito le richieste rimaste in coda o fallite.
+    SyncService.instance.syncAll().then((_) => mounted ? _loadAll() : null);
   }
 
   Future<void> _loadAll() async {
@@ -151,6 +155,18 @@ class _FerieAssenzeScreenState extends State<FerieAssenzeScreen> {
               children: [
                 Text(_labelFor(request.type), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 Text(period, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                // Errore restituito da BC all'ultimo invio (ritentato alla
+                // prossima sincronizzazione).
+                if (request.status == SyncStatus.failed && request.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      request.errorMessage!,
+                      style: const TextStyle(fontSize: 11, color: AppColors.danger),
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
               ],
             ),
           ),

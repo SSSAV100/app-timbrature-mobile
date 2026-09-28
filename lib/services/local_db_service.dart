@@ -343,10 +343,11 @@ class LocalDbService {
 
   Future<List<AssenzaRequest>> getPendingAssenze() async {
     final db = await database;
+    // In attesa e fallite: le fallite si ritentano a ogni sincronizzazione.
     final rows = await db.query(
       'pending_assenze',
-      where: 'status = ?',
-      whereArgs: [SyncStatus.pending.name],
+      where: 'status IN (?, ?)',
+      whereArgs: [SyncStatus.pending.name, SyncStatus.failed.name],
     );
     return rows.map(AssenzaRequest.fromDbMap).toList();
   }
@@ -390,10 +391,11 @@ class LocalDbService {
 
   Future<List<NotaSpesa>> getPendingNoteSpese() async {
     final db = await database;
+    // In attesa e fallite: le fallite si ritentano a ogni sincronizzazione.
     final rows = await db.query(
       'pending_note_spese',
-      where: 'status = ?',
-      whereArgs: [SyncStatus.pending.name],
+      where: 'status IN (?, ?)',
+      whereArgs: [SyncStatus.pending.name, SyncStatus.failed.name],
     );
     return rows.map(NotaSpesa.fromDbMap).toList();
   }
