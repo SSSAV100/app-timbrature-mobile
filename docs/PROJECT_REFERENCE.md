@@ -57,6 +57,15 @@
 > Commessa` = Service, `Project Manager` come approvatore, ore su Job
 > Journal) va rivista quando arrivano i dettagli esatti: per ora non
 > testarla e non estenderla.
+>
+> **Decisione (28.09.2026): una sola app, moduli per dipendente.** Niente
+> app separate e niente selettore di modalità. Alcuni dipendenti fanno sia
+> cantiere sia Service: `GET /me` dirà quali moduli mostrare (cantiere,
+> service), la home mostra le piastrelle corrispondenti. Il Service avrà
+> schermate proprie (interventi assegnati → dettaglio con ore, materiali,
+> bollettino) e codice AL proprio sulle tabelle Service di BC; il codice
+> Service attuale basato su Job/Job Task va rimosso, non adattato. Parte
+> comune unica: timbrature, assenze, note spese, approvazioni.
 
 | | Standard (Cantieri/Acquedotti) | Service |
 |---|---|---|
