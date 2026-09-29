@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/theme.dart';
+import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import '../services/bc_api_service.dart';
+import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 import 'service_detail_screen.dart';
 
@@ -18,6 +20,10 @@ class ServiceListScreen extends StatefulWidget {
 
 class _ServiceListScreenState extends State<ServiceListScreen> {
   List<ServiceAssignment> _assignments = [];
+
+  /// Azioni fatte dall'app per intervento (chiave ordine/riga), per mostrare
+  /// lo stesso stato del dettaglio anche prima che arrivino in BC.
+  Map<String, List<ServiceAction>> _actionsByKey = {};
   bool _isLoading = true;
   String? _message;
 
@@ -40,8 +46,14 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
         final byDate = a.allocationDate.compareTo(b.allocationDate);
         return byDate != 0 ? byDate : a.orderNo.compareTo(b.orderNo);
       });
+      final actionsByKey = <String, List<ServiceAction>>{};
+      for (final a in assignments) {
+        actionsByKey['${a.orderNo}/${a.itemLineNo}'] =
+            await LocalDbService.instance.getServiceActionsFor(a.orderNo, a.itemLineNo);
+      }
       setState(() {
         _assignments = assignments;
+        _actionsByKey = actionsByKey;
         if (BcApiService.instance.serviceFromCache) {
           _message = 'Offline: elenco interventi dell\'ultimo aggiornamento.';
         }
@@ -102,7 +114,12 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                 ),
               ),
-              for (final a in entry.value) _AssignmentTile(assignment: a, onTap: () => _open(a)),
+              for (final a in entry.value)
+                _AssignmentTile(
+                  assignment: a,
+                  state: ServiceAction.effectiveState(a.state, _actionsByKey['${a.orderNo}/${a.itemLineNo}'] ?? const []),
+                  onTap: () => _open(a),
+                ),
             ],
           ],
         ),
@@ -124,9 +141,10 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
 
 class _AssignmentTile extends StatelessWidget {
   final ServiceAssignment assignment;
+  final ServiceState state;
   final VoidCallback onTap;
 
-  const _AssignmentTile({required this.assignment, required this.onTap});
+  const _AssignmentTile({required this.assignment, required this.state, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +181,7 @@ class _AssignmentTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            ServiceStateChip(state: assignment.state),
+            ServiceStateChip(state: state),
           ],
         ),
       ),

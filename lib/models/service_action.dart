@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'service_assignment.dart' show ServiceState;
 import 'timesheet_entry.dart' show SyncStatus;
 
 /// Tipo di azione su un intervento, ciascuna con il suo endpoint BC.
@@ -38,6 +39,18 @@ class ServiceAction {
     this.status = SyncStatus.pending,
     this.errorMessage,
   });
+
+  /// Stato da mostrare: quello di BC, aggiornato dall'ultimo evento fatto
+  /// dall'app ([actions] dalla più recente), anche se non ancora inviato.
+  static ServiceState effectiveState(ServiceState bcState, List<ServiceAction> actions) {
+    final lastEvent = actions.where((a) => a.kind == ServiceActionKind.event).firstOrNull;
+    if (lastEvent == null) return bcState;
+    return switch (lastEvent.payload['eventType']) {
+      'start' => ServiceState.inProgress,
+      'finish' => ServiceState.finished,
+      _ => ServiceState.reschedule,
+    };
+  }
 
   /// Testo breve per l'elenco delle azioni in attesa sull'intervento.
   String get summary => switch (kind) {

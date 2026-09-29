@@ -46,15 +46,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   /// Stato mostrato: quello di BC, aggiornato dall'ultimo evento fatto
   /// dall'app (anche se non ancora inviato), così il tecnico vede subito
   /// l'effetto dei pulsanti anche offline.
-  ServiceState get _state {
-    final lastEvent = _actions.where((a) => a.kind == ServiceActionKind.event).firstOrNull;
-    if (lastEvent == null) return _a.state;
-    return switch (lastEvent.payload['eventType']) {
-      'start' => ServiceState.inProgress,
-      'finish' => ServiceState.finished,
-      _ => ServiceState.reschedule,
-    };
-  }
+  ServiceState get _state => ServiceAction.effectiveState(_a.state, _actions);
 
   Future<void> _queue(ServiceActionKind kind, Map<String, dynamic> payload, {String? filePath}) async {
     await LocalDbService.instance.saveServiceAction(ServiceAction(
@@ -179,6 +171,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 ServiceStateChip(state: state),
               ],
             ),
+            // Stato cambiato dall'app ma non ancora confermato da BC (coda non
+            // inviata, o errore: vedi le righe sotto "Registrato dall'app").
+            if (state != _a.state)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text('In attesa di conferma da Business Central',
+                    style: TextStyle(fontSize: 11, color: Colors.orange)),
+              ),
             const SizedBox(height: 8),
             if (_a.fullAddress.isNotEmpty)
               _InfoRow(icon: Icons.place_outlined, text: _a.fullAddress, onTap: _openMaps),
