@@ -66,6 +66,9 @@
 > bollettino) e codice AL proprio sulle tabelle Service di BC; il codice
 > Service attuale basato su Job/Job Task va rimosso, non adattato. Parte
 > comune unica: timbrature, assenze, note spese, approvazioni.
+>
+> Analisi del modulo Service di BC (tabelle, assegnazione tecnici, stati,
+> posting, allegati): `docs/SERVICE_BC_ANALYSIS.md`.
 
 | | Standard (Cantieri/Acquedotti) | Service |
 |---|---|---|
