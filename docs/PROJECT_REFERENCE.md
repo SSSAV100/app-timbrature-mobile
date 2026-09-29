@@ -69,6 +69,16 @@
 >
 > Analisi del modulo Service di BC (tabelle, assegnazione tecnici, stati,
 > posting, allegati): `docs/SERVICE_BC_ANALYSIS.md`.
+>
+> **Service fase 2 (idea di Michele, 29.09.2026): riprogrammazione
+> autonoma.** Con "Da riprogrammare" il tecnico vede i prossimi giorni
+> liberi, calcolati come capacità della risorsa meno le ore già assegnate
+> (Service Order Allocation), e in cima i giorni con interventi nella
+> stessa zona o in una zona vicina. Sceglie un giorno e si riassegna
+> l'intervento (`ServAllocationManagement.AllocateDate`), visibile
+> all'ufficio nella Dispatch Board. Da decidere: capacità dei tecnici in BC
+> (Res. Capacity), definizione delle zone vicine, limiti alla prenotazione
+> (giorni massimi o conferma dell'ufficio).
 
 | | Standard (Cantieri/Acquedotti) | Service |
 |---|---|---|
