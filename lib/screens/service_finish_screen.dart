@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
@@ -11,6 +12,7 @@ import '../core/service_report_pdf.dart';
 import '../core/theme.dart';
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
+import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import 'signature_pad_screen.dart';
 
@@ -38,18 +40,72 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
   Uint8List? _signature;
   bool _isSaving = false;
 
+  // Ore proposte: tempo da "Inizia" a ora, arrotondato al quarto d'ora.
+  final _hoursServiceController = TextEditingController();
+  final _hoursSalaryController = TextEditingController();
+  bool _registerHours = true;
+  List<WorkType> _workTypes = [];
+  WorkType? _workType;
+  DateTime? _startedAt;
+  double _alreadyEnteredHours = 0;
+
   ServiceAssignment get _a => widget.assignment;
 
   @override
   void initState() {
     super.initState();
     _clientNameController.text = _a.contactName;
+
+    // Inizio: l'ultimo "Inizia" fatto dall'app, altrimenti quello registrato
+    // da BC (es. iniziato da un altro telefono o dall'ufficio).
+    final localStart = widget.actions
+        .where((a) => a.kind == ServiceActionKind.event && a.payload['eventType'] == 'start')
+        .firstOrNull;
+    _startedAt = localStart?.createdAt ?? _a.startedAt;
+    _alreadyEnteredHours = widget.actions
+        .where((a) => a.kind == ServiceActionKind.hours)
+        .fold(0.0, (sum, a) => sum + ((a.payload['hoursService'] as num?)?.toDouble() ?? 0));
+
+    // Ore già inserite a mano: nessuna proposta (si possono aggiungere).
+    _registerHours = _alreadyEnteredHours == 0;
+    final proposed = _proposedHours();
+    if (proposed != null) {
+      final text = _format(proposed);
+      _hoursServiceController.text = text;
+      _hoursSalaryController.text = text;
+    }
+
+    BcApiService.instance.fetchWorkTypes().then((types) {
+      if (!mounted) return;
+      setState(() {
+        _workTypes = types;
+        _workType = types.isNotEmpty ? types.first : null;
+      });
+    }).catchError((Object _) {
+      // Senza tipi lavoro (offline, mai letti) si chiude senza ore proposte.
+      if (mounted) setState(() => _registerHours = false);
+    });
   }
+
+  double? _proposedHours() {
+    if (_startedAt == null) return null;
+    final minutes = DateTime.now().difference(_startedAt!).inMinutes;
+    if (minutes <= 0) return null;
+    final quarters = (minutes / 15).round();
+    return (quarters < 1 ? 1 : quarters) / 4;
+  }
+
+  String _format(double hours) => hours == hours.roundToDouble() ? hours.toStringAsFixed(0) : hours.toString();
+
+  double? _parse(TextEditingController c) =>
+      c.text.trim().isEmpty ? 0 : double.tryParse(c.text.replaceAll(',', '.'));
 
   @override
   void dispose() {
     _workDoneController.dispose();
     _clientNameController.dispose();
+    _hoursServiceController.dispose();
+    _hoursSalaryController.dispose();
     super.dispose();
   }
 
@@ -96,14 +152,48 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
       _snack('Serve la firma del cliente.');
       return;
     }
+    final hoursService = _parse(_hoursServiceController);
+    final hoursSalary = _parse(_hoursSalaryController);
+    if (_registerHours) {
+      if (_workType == null) {
+        _snack('Scegli il tipo lavoro delle ore.');
+        return;
+      }
+      if (hoursService == null || hoursSalary == null || hoursService < 0 || hoursSalary < 0 ||
+          (hoursService == 0 && hoursSalary == 0)) {
+        _snack('Controlla le ore Service e stipendio.');
+        return;
+      }
+    }
 
     setState(() => _isSaving = true);
     try {
       final stamp = DateTime.now().millisecondsSinceEpoch;
+
+      // Ore prima di tutto il resto: in coda vanno inviate prima della chiusura.
+      final pdfActions = [...widget.actions];
+      if (_registerHours) {
+        final hoursPayload = <String, dynamic>{
+          'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          'workTypeCode': _workType!.code,
+          'hoursService': hoursService,
+          'hoursSalary': hoursSalary,
+        };
+        await _queue(ServiceActionKind.hours, hoursPayload);
+        pdfActions.add(ServiceAction(
+          localId: '',
+          createdAt: DateTime.now(),
+          kind: ServiceActionKind.hours,
+          orderNo: _a.orderNo,
+          itemLineNo: _a.itemLineNo,
+          payload: hoursPayload,
+        ));
+      }
+
       final signaturePath = await LocalFiles.saveBytes(_signature!, 'firma_${_a.orderNo}_$stamp.png');
       final pdf = await ServiceReportPdf.generate(
         assignment: _a,
-        actions: widget.actions,
+        actions: pdfActions,
         workDone: workDone,
         clientName: clientName,
         signaturePng: _signature!,
@@ -132,6 +222,67 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
 
   void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
+  Widget _buildHoursSection() {
+    final timeFormat = DateFormat('HH:mm');
+    final hint = _startedAt == null
+        ? 'Intervento senza ora di inizio: inserisci le ore.'
+        : 'Iniziato alle ${timeFormat.format(_startedAt!)}: ore proposte fino ad ora, modificabili.';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Registra le ore dell\'intervento'),
+            subtitle: Text(
+              _alreadyEnteredHours > 0 ? 'Già inserite: ${_format(_alreadyEnteredHours)} h Service' : hint,
+              style: const TextStyle(fontSize: 12),
+            ),
+            value: _registerHours,
+            onChanged: (v) => setState(() => _registerHours = v),
+          ),
+          if (_registerHours) ...[
+            DropdownButtonFormField<WorkType>(
+              initialValue: _workType,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Tipo lavoro'),
+              items: _workTypes
+                  .map((t) => DropdownMenuItem(value: t, child: Text('${t.code} · ${t.description}')))
+                  .toList(),
+              onChanged: (t) => setState(() => _workType = t),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _hoursServiceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Ore Service'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _hoursSalaryController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Ore stipendio'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,6 +298,8 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
             maxLines: 4,
             decoration: const InputDecoration(labelText: 'Lavoro svolto'),
           ),
+          const SizedBox(height: 16),
+          _buildHoursSection(),
           const SizedBox(height: 16),
           const Text('Foto (facoltative)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const SizedBox(height: 8),

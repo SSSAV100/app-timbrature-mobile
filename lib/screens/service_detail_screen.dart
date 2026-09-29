@@ -67,6 +67,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         'occurredAt': DateTime.now().toUtc().toIso8601String(),
       });
 
+  /// Inizia automatico: ore, materiale e chiusura su un intervento non
+  /// ancora iniziato mettono prima in coda l'inizio, così BC ha comunque
+  /// l'ora di inizio e lo stato "In corso".
+  Future<void> _ensureStarted() async {
+    if (_state == ServiceState.toDo || _state == ServiceState.reschedule) await _start();
+  }
+
   Future<void> _reschedule() async {
     final controller = TextEditingController();
     final note = await showDialog<String>(
@@ -108,7 +115,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _HoursSheet(),
     );
-    if (payload != null) await _queue(ServiceActionKind.hours, payload);
+    if (payload == null) return;
+    await _ensureStarted();
+    await _queue(ServiceActionKind.hours, payload);
   }
 
   Future<void> _addMaterial() async {
@@ -119,10 +128,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _MaterialSheet(),
     );
-    if (payload != null) await _queue(ServiceActionKind.material, payload);
+    if (payload == null) return;
+    await _ensureStarted();
+    await _queue(ServiceActionKind.material, payload);
   }
 
   Future<void> _finish() async {
+    await _ensureStarted();
+    if (!mounted) return;
     final done = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => ServiceFinishScreen(assignment: _a, actions: _actions)),
     );

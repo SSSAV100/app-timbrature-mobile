@@ -24,6 +24,9 @@ class ServiceAssignment {
   final String phone;
   final String workDescription;
 
+  /// Inizio effettivo registrato da BC ("Inizia"), se c'è.
+  final DateTime? startedAt;
+
   const ServiceAssignment({
     required this.id,
     required this.orderNo,
@@ -42,6 +45,7 @@ class ServiceAssignment {
     required this.contactName,
     required this.phone,
     required this.workDescription,
+    this.startedAt,
   });
 
   String get fullAddress => [address, '$postCode $city'.trim()].where((e) => e.isNotEmpty).join(', ');
@@ -65,7 +69,15 @@ class ServiceAssignment {
       contactName: json['contactName'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       workDescription: json['workDescription'] as String? ?? '',
+      startedAt: _parseStartedAt(json['startedAt'] as String?),
     );
+  }
+
+  // BC restituisce "0001-01-01T00:00:00Z" per un DateTime vuoto.
+  static DateTime? _parseStartedAt(String? raw) {
+    final value = DateTime.tryParse(raw ?? '');
+    if (value == null || value.year < 2000) return null;
+    return value.toLocal();
   }
 }
 

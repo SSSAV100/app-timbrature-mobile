@@ -326,6 +326,13 @@ Sezione Service, su ordini di assistenza standard di BC (vedi
 - `POST /serviceMaterials`: `{orderNo, itemLineNo, itemNo, quantity}`.
 - `POST /serviceAttachments`: `{orderNo, fileName, fileBase64}`, allegato all'ordine (firma, foto, PDF).
 - `GET /workTypes` (`code`, `description`), `GET /materialItems` (`no`, `description`, `unitOfMeasure`).
+- `serviceAssignments.startedAt`: inizio effettivo registrato da BC ("Inizia").
+
+Flusso in app: **Inizia** quando si arriva, **Termina** a fine lavoro.
+Termina propone le ore, cioè il tempo da Inizia arrotondato al quarto
+d'ora, con ore Service e stipendio modificabili. Il pulsante **Ore** serve
+per i casi particolari (più giorni, più tipi lavoro). Ore, materiale o
+Termina senza Inizia mettono prima in coda l'inizio in automatico.
 
 L'app mette tutto in un'unica coda locale (`pending_service_actions`) e la
 invia in ordine di creazione. Se un'azione fallisce, le successive dello
