@@ -306,6 +306,13 @@ Flutter, sezione 4.
   ricevuta" / "Mostra allegato" nelle due pagine.
 - Offline: timbratura e riga ore in modalità aereo, inviate da sole al
   ritorno della rete (elenco commesse dalla copia locale).
+- **Service fase 1** (29.09.2026, estensione 1.0.0.18): interventi dalla
+  Dispatch Board, Inizia, ore divise (Service sull'ordine, stipendio su
+  SwissSalary), materiale, Termina con firma/foto/PDF allegati all'ordine e
+  descrizione del lavoro. Trasferta della zona: se BC la rifiuta (es. conto
+  C/G del costo di servizio senza "Cat. reg. art./serv.") la chiusura va
+  avanti e resta un commento sull'ordine. Da verificare: trasferta con conto
+  a posto, "Da riprogrammare" nella Dispatch Board.
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
