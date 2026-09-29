@@ -30,6 +30,7 @@ class SyncService {
       await _syncPendingAssenze();
       await _syncPendingNoteSpese();
       await _syncPendingApprovalDecisions();
+      await _syncPendingServiceActions();
     } finally {
       _isSyncing = false;
     }
@@ -96,6 +97,25 @@ class SyncService {
       } catch (e) {
         await LocalDbService.instance.markNotaSpesaFailed(nota.localId, e.toString());
         // Si prosegue con le altre note spese in coda anche se una fallisce.
+      }
+    }
+  }
+
+  /// Azioni sugli interventi, nell'ordine in cui sono state fatte. Se una
+  /// fallisce, le successive dello stesso intervento aspettano il prossimo
+  /// giro (es. la chiusura non parte prima delle ore rimaste indietro).
+  Future<void> _syncPendingServiceActions() async {
+    final pending = await LocalDbService.instance.getPendingServiceActions();
+    final blocked = <String>{};
+    for (final action in pending) {
+      final key = '${action.orderNo}/${action.itemLineNo}';
+      if (blocked.contains(key)) continue;
+      try {
+        await BcApiService.instance.submitServiceAction(action);
+        await LocalDbService.instance.markServiceActionSynced(action.localId);
+      } catch (e) {
+        await LocalDbService.instance.markServiceActionFailed(action.localId, e.toString());
+        blocked.add(key);
       }
     }
   }

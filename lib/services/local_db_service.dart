@@ -5,6 +5,7 @@ import '../models/approval_decision.dart';
 import '../models/assenza_request.dart';
 import '../models/bollettino.dart';
 import '../models/nota_spesa.dart';
+import '../models/service_action.dart';
 import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart';
 
@@ -29,7 +30,7 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
@@ -37,6 +38,7 @@ class LocalDbService {
         await _createAssenzeTable(db);
         await _createNoteSpeseTable(db);
         await _createApprovalDecisionsTable(db);
+        await _createServiceActionsTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -61,6 +63,9 @@ class LocalDbService {
           // Attività della commessa sulla nota spesa (SwissSalary la
           // richiede quando c'è la commessa).
           await db.execute('ALTER TABLE pending_note_spese ADD COLUMN task_id TEXT');
+        }
+        if (oldVersion < 8) {
+          await _createServiceActionsTable(db);
         }
       },
     );
@@ -133,6 +138,71 @@ class LocalDbService {
         error_message TEXT
       )
     ''');
+  }
+
+  /// Coda unica delle azioni sugli interventi Service (vedi ServiceAction).
+  Future<void> _createServiceActionsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE pending_service_actions (
+        local_id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        order_no TEXT NOT NULL,
+        item_line_no INTEGER NOT NULL,
+        payload_json TEXT NOT NULL,
+        file_path TEXT,
+        status TEXT NOT NULL,
+        error_message TEXT
+      )
+    ''');
+  }
+
+  // --- Azioni sugli interventi Service ---
+
+  Future<void> saveServiceAction(ServiceAction action) async {
+    final db = await database;
+    await db.insert('pending_service_actions', action.toDbMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Da inviare (in attesa e fallite), nell'ordine in cui sono state fatte.
+  Future<List<ServiceAction>> getPendingServiceActions() async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_service_actions',
+      where: 'status IN (?, ?)',
+      whereArgs: [SyncStatus.pending.name, SyncStatus.failed.name],
+      orderBy: 'created_at ASC',
+    );
+    return rows.map(ServiceAction.fromDbMap).toList();
+  }
+
+  /// Tutte le azioni fatte dall'app su un intervento, le più recenti prima.
+  Future<List<ServiceAction>> getServiceActionsFor(String orderNo, int itemLineNo) async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_service_actions',
+      where: 'order_no = ? AND item_line_no = ?',
+      whereArgs: [orderNo, itemLineNo],
+      orderBy: 'created_at DESC',
+    );
+    return rows.map(ServiceAction.fromDbMap).toList();
+  }
+
+  Future<void> markServiceActionSynced(String localId) async {
+    final db = await database;
+    await db.update('pending_service_actions', {'status': SyncStatus.synced.name, 'error_message': null},
+        where: 'local_id = ?', whereArgs: [localId]);
+  }
+
+  Future<void> markServiceActionFailed(String localId, String errorMessage) async {
+    final db = await database;
+    await db.update('pending_service_actions', {'status': SyncStatus.failed.name, 'error_message': errorMessage},
+        where: 'local_id = ?', whereArgs: [localId]);
+  }
+
+  Future<void> deleteServiceAction(String localId) async {
+    final db = await database;
+    await db.delete('pending_service_actions', where: 'local_id = ?', whereArgs: [localId]);
   }
 
   Future<void> _createNoteSpeseTable(Database db) async {

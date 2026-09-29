@@ -10,6 +10,8 @@ import '../models/assenza_request.dart';
 import '../models/bollettino.dart';
 import '../models/nota_spesa.dart';
 import '../models/project.dart';
+import '../models/service_action.dart';
+import '../models/service_assignment.dart';
 import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart';
 import 'auth_service.dart';
@@ -51,18 +53,25 @@ class BcApiService {
       await LocalFiles.writeCache(_projectsCacheFile, jsonEncode(merged));
       projectsFromCache = false;
       return merged.map(Project.fromJson).toList();
-    } on BcApiException {
-      // Errore di BC (es. 400/500): va mostrato, non nascosto dalla cache.
-      rethrow;
-    } catch (_) {
-      // Rete assente o token non rinnovabile offline: ultimo elenco salvato.
-      final cached = await LocalFiles.readCache(_projectsCacheFile);
-      if (cached == null) rethrow;
-      projectsFromCache = true;
-      return (jsonDecode(cached) as List<dynamic>)
-          .map((e) => Project.fromJson(e as Map<String, dynamic>))
-          .toList();
+    } on BcApiException catch (e) {
+      // Errore restituito da BC (400/500): va mostrato, non nascosto dalla
+      // cache. Senza statusCode (sessione non rinnovabile offline) si usa
+      // invece la copia locale, come per la rete assente.
+      if (e.statusCode != null) rethrow;
+      return _cachedProjectsOrThrow(e);
+    } catch (e) {
+      return _cachedProjectsOrThrow(e);
     }
+  }
+
+  /// Rete assente o token non rinnovabile offline: ultimo elenco salvato.
+  Future<List<Project>> _cachedProjectsOrThrow(Object error) async {
+    final cached = await LocalFiles.readCache(_projectsCacheFile);
+    if (cached == null) throw error;
+    projectsFromCache = true;
+    return (jsonDecode(cached) as List<dynamic>)
+        .map((e) => Project.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// True se l'ultimo [fetchAssignedProjects] ha restituito la copia locale
@@ -92,6 +101,72 @@ class BcApiService {
       final projectId = e['id'] as String? ?? '';
       return {...e, 'tasks': tasksByProject[projectId] ?? const []};
     }).toList();
+  }
+
+  // --- Service ---
+
+  /// Interventi assegnati al tecnico (Dispatch Board). Con BC non
+  /// raggiungibile restituisce l'ultimo elenco letto ([serviceFromCache]).
+  Future<List<ServiceAssignment>> fetchServiceAssignments() async {
+    final rows = await _getWithCache('serviceAssignments', 'service_assignments.json');
+    return rows.map(ServiceAssignment.fromJson).toList();
+  }
+
+  Future<List<WorkType>> fetchWorkTypes() async {
+    final rows = await _getWithCache('workTypes', 'work_types.json');
+    return rows.map(WorkType.fromJson).toList();
+  }
+
+  Future<List<MaterialItem>> fetchMaterialItems() async {
+    final rows = await _getWithCache('materialItems', 'material_items.json');
+    return rows.map(MaterialItem.fromJson).toList();
+  }
+
+  /// True se l'ultima lettura Service ha usato la copia locale.
+  bool serviceFromCache = false;
+
+  Future<List<Map<String, dynamic>>> _getWithCache(String entitySet, String cacheFile) async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.get(Uri.parse('${AppConfig.instance.customApiBaseUrl}/$entitySet'), headers: headers);
+      _throwIfNotOk(response);
+      final rows = _values(response);
+      await LocalFiles.writeCache(cacheFile, jsonEncode(rows));
+      serviceFromCache = false;
+      return rows;
+    } catch (e) {
+      // Errore restituito da BC: va mostrato. Rete assente o sessione non
+      // rinnovabile offline: ultima copia salvata.
+      if (e is BcApiException && e.statusCode != null) rethrow;
+      final cached = await LocalFiles.readCache(cacheFile);
+      if (cached == null) rethrow;
+      serviceFromCache = true;
+      return (jsonDecode(cached) as List<dynamic>).cast<Map<String, dynamic>>();
+    }
+  }
+
+  /// Invia un'azione della coda Service all'endpoint corrispondente.
+  Future<void> submitServiceAction(ServiceAction action) async {
+    final headers = await _authHeaders();
+    final entitySet = switch (action.kind) {
+      ServiceActionKind.event => 'serviceEvents',
+      ServiceActionKind.hours => 'serviceHours',
+      ServiceActionKind.material => 'serviceMaterials',
+      ServiceActionKind.attachment => 'serviceAttachments',
+    };
+    // BC rifiuta i campi che non conosce: via quelli solo per l'app ("_…") e
+    // itemLineNo per gli allegati (sono dell'ordine, non della riga).
+    final body = <String, dynamic>{...action.payload}..removeWhere((key, _) => key.startsWith('_'));
+    if (action.kind == ServiceActionKind.attachment) body.remove('itemLineNo');
+    if (action.kind == ServiceActionKind.attachment && action.filePath != null) {
+      body['fileBase64'] = base64Encode(await LocalFiles.readBytes(action.filePath!));
+    }
+    final response = await http.post(
+      Uri.parse('${AppConfig.instance.customApiBaseUrl}/$entitySet'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    _throwIfNotOk(response);
   }
 
   List<Map<String, dynamic>> _values(http.Response response) {
@@ -318,6 +393,7 @@ class BcApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw BcApiException(
         'Errore Business Central (${response.statusCode}): ${response.body}',
+        statusCode: response.statusCode,
       );
     }
   }
@@ -325,7 +401,11 @@ class BcApiService {
 
 class BcApiException implements Exception {
   final String message;
-  BcApiException(this.message);
+
+  /// Codice HTTP della risposta di BC; null se l'errore è dell'app (es.
+  /// sessione scaduta e token non rinnovabile senza rete).
+  final int? statusCode;
+  BcApiException(this.message, {this.statusCode});
 
   @override
   String toString() => message;

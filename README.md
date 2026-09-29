@@ -308,6 +308,30 @@ specifica funzionale, sezione 9). Importo sempre in franchi svizzeri
 `projectId` è obbligatorio anche `taskId` (attività della commessa):
 SwissSalary non accetta la riga spese con commessa senza attività.
 
+### Service (interventi): `GET /serviceAssignments` e azioni
+
+Sezione Service, su ordini di assistenza standard di BC (vedi
+`docs/SERVICE_BC_ANALYSIS.md`). Visibile se `GET /me` restituisce
+`modules` con `service` (flag "Tecnico Service" sulla scheda dipendente).
+
+- `GET /serviceAssignments`: interventi assegnati al tecnico dalla Dispatch
+  Board (da −7 a +14 giorni). Campi: `id`, `orderNo`, `itemLineNo`,
+  `allocationDate`, `allocatedHours`, `state` (`toDo` / `inProgress` /
+  `finished` / `reschedule`), `orderDescription`, `itemDescription`,
+  `priority`, `zoneCode`, `customerName`, `address`, `postCode`, `city`,
+  `contactName`, `phone`, `workDescription`.
+- `POST /serviceEvents`: `{orderNo, itemLineNo, eventType: start|finish|reschedule, occurredAt, note}`.
+- `POST /serviceHours`: `{orderNo, itemLineNo, date, workTypeCode, hoursService, hoursSalary, note}`.
+  Le ore Service vanno sull'ordine (fattura), le ore stipendio su SwissSalary.
+- `POST /serviceMaterials`: `{orderNo, itemLineNo, itemNo, quantity}`.
+- `POST /serviceAttachments`: `{orderNo, fileName, fileBase64}`, allegato all'ordine (firma, foto, PDF).
+- `GET /workTypes` (`code`, `description`), `GET /materialItems` (`no`, `description`, `unitOfMeasure`).
+
+L'app mette tutto in un'unica coda locale (`pending_service_actions`) e la
+invia in ordine di creazione. Se un'azione fallisce, le successive dello
+stesso intervento aspettano. I campi solo dell'app hanno il prefisso `_` e
+non vengono inviati: BC rifiuta i campi che non conosce.
+
 ### `GET /me`
 
 Restituisce l'utente autenticato (identificato dal token Azure AD) e i

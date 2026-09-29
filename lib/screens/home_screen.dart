@@ -15,10 +15,10 @@ import '../services/location_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
 import 'approvals_screen.dart';
-import 'bollettino_screen.dart';
 import 'ferie_assenze_screen.dart';
 import 'note_spese_screen.dart';
 import 'ore_progetti_screen.dart';
+import 'service_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -221,14 +221,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(builder: (_) => const OreProgettiScreen()),
                   ),
                 ),
-                ModuleTile(
-                  icon: Icons.description_outlined,
-                  iconColor: const Color(0xFF0F6E56),
-                  label: 'Bollettino',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const BollettinoScreen()),
+                // Sezione Service: interventi assegnati dalla Dispatch Board,
+                // solo per chi ha il modulo (flag "Tecnico Service" in BC). Il
+                // vecchio Bollettino su commesse Job è stato sostituito.
+                if (_currentUser?.hasServiceModule == true)
+                  ModuleTile(
+                    icon: Icons.build_outlined,
+                    iconColor: const Color(0xFF0F6E56),
+                    label: 'Interventi',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ServiceListScreen()),
+                    ),
                   ),
-                ),
                 ModuleTile(
                   icon: Icons.beach_access_outlined,
                   iconColor: const Color(0xFF993C1D),

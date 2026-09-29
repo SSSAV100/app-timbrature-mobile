@@ -13,11 +13,18 @@ class AppUser {
   final String fullName;
   final Set<String> roles;
 
+  /// Sezioni dell'app da mostrare ("progetti", "service"), decise in BC
+  /// (flag "Tecnico Service" sulla scheda dipendente).
+  final Set<String> modules;
+
   const AppUser({
     required this.employeeId,
     required this.fullName,
     required this.roles,
+    this.modules = const {'progetti'},
   });
+
+  bool get hasServiceModule => modules.contains('service');
 
   bool get isResponsabileCantiere => roles.contains('responsabileCantiere');
   bool get isResponsabileProgetti => roles.contains('responsabileProgetti');
@@ -37,10 +44,16 @@ class AppUser {
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toSet();
+    final rawModules = (json['modules'] as String? ?? 'progetti')
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
     return AppUser(
       employeeId: json['employeeId'] as String? ?? '',
       fullName: json['fullName'] as String? ?? '',
       roles: rawRoles,
+      modules: rawModules,
     );
   }
 }
