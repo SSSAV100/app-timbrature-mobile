@@ -1,6 +1,6 @@
 # App Timbrature (Flutter)
 
-App mobile (iOS/Android) per timbrature, ore su commessa, bollettini, ferie/assenze,
+App mobile (iOS/Android) per ore su commessa, interventi Service, ferie/assenze,
 note spese e approvazioni. Parla direttamente con le API AL custom di Business Central
 (nessun middleware). Il contratto delle API è in `README.md`, sezione 4.
 
@@ -49,6 +49,8 @@ flutter run --release             # si apre dall'icona senza Mac
 - In debug su iOS 14+ l'app si avvia solo da `flutter run` (toccare l'icona dà errore).
 - Xcode aperto, ma anche `flutter build ios`, riformatta `ios/Runner/Base.lproj/Main.storyboard`:
   non committarlo, `git checkout -- ios/Runner/Base.lproj/Main.storyboard`.
+- A ogni build installata alzare `version:` in `pubspec.yaml` (il numero dopo `+` è la build):
+  così in Impostazioni → Generali → Spazio iPhone si vede quale versione c'è.
 - Installare la release sull'iPhone senza perdere login e dati locali: `flutter build ios --release`,
   poi `xcrun devicectl device install app --device <udid> build/ios/iphoneos/Runner.app`.
   `flutter install` invece disinstalla prima la versione vecchia (dati locali persi).

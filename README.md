@@ -145,6 +145,10 @@ un progetto con `tasks` vuoto non può ricevere ore dall'app.
 
 ### `POST /timePunches`
 
+> **Non più usata dall'app dal 14.11.2026**: la timbratura entrata/uscita è
+> stata tolta su richiesta del cliente. L'app invia ancora eventuali
+> timbrature rimaste in coda da versioni precedenti.
+
 Riceve una singola timbratura da registrare (e da cui, secondo la logica
 che deciderai in AL, generare/aggiornare la riga ore del giorno).
 
@@ -433,6 +437,9 @@ coincidano con quelli scelti nella tua estensione AL (anche qui, nessun
 file .dart da modificare).
 
 ### Geolocalizzazione al momento della timbratura (calcolo trasferta)
+
+> **Tolta il 14.11.2026** insieme alle timbrature: niente più `geolocator`
+> né permessi di posizione. La descrizione sotto è solo storica.
 
 Ogni timbratura include ora, quando disponibile, un singolo punto GPS
 (campi `latitude`/`longitude` già presenti nel payload di `/timePunches`

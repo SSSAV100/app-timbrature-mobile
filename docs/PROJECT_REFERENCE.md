@@ -40,7 +40,7 @@
 | Login | `flutter_appauth` **12.x o successivo** | Vedi sezione 4: la 11.x manca del supporto UIScene, causa blocchi silenziosi |
 | Storage sicuro token | `flutter_secure_storage` | Keychain iOS / Keystore Android |
 | Database locale (coda offline) | `sqflite` | Coda temporanea di ciò che va inviato; BC resta l'unica fonte di verità. Unica copia locale di dati BC: l'ultimo elenco commesse/attività (`cache/assigned_projects.json`), usato solo senza rete per poter timbrare e registrare ore offline |
-| Geolocalizzazione | `geolocator` | Un solo punto GPS per timbratura, permesso "quando in uso", mai tracciamento continuo |
+| Geolocalizzazione | — (tolta il 14.11.2026) | Serviva solo alla timbratura, rimossa su richiesta del cliente: niente più `geolocator` né permessi di posizione |
 | Foto | `image_picker` | Fotocamera o galleria |
 | Firma su schermo | `signature` | Solo per il bollettino Service |
 | PDF | `pdf` | Generato localmente per il bollettino, condiviso subito via `share_plus` |
@@ -108,7 +108,13 @@
 
 ### 3.3 Trasferta (calcolo distanza)
 
-- L'app cattura **solo un punto GPS** al momento della timbratura (non tracciamento continuo).
+> **14.11.2026: timbrature tolte dall'app su richiesta del cliente** (niente
+> più "Timbra entrata/uscita" in home, niente GPS). Il calcolo della
+> trasferta dei cantieri dal punto GPS qui sotto non ha più dati in
+> ingresso: se servirà, va ripensato. Per il Service la trasferta è per
+> zona di servizio (vedi sezione 3.1 e `SERVICE_BC_ANALYSIS.md`).
+
+- (Storico) L'app catturava **solo un punto GPS** al momento della timbratura (non tracciamento continuo).
 - Il **calcolo della distanza e la fascia di trasferta li fa Business Central**, non l'app: la sede centrale e le fasce del CCL sono configurate lato BC, così cambiano senza ricompilare l'app.
 - Le fasce esatte del CCL erano ancora da ricevere dal cliente all'ultimo aggiornamento di questo documento — verificare lo stato con il team BC.
 
@@ -207,8 +213,9 @@ Ordinate per probabilità di essere la causa di un problema simile in futuro.
    native separate, entrambe necessarie).
 
 10. **Permessi iOS da dichiarare in `Info.plist`**:
-    `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`,
-    `NSLocationWhenInUseUsageDescription`, e — anche se l'app chiede solo
+    `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`.
+    Dal 14.11.2026 niente posizione (geolocator tolto con le timbrature).
+    Se tornasse il GPS servono `NSLocationWhenInUseUsageDescription` e — anche se l'app chiede solo
     il permesso "quando in uso" — anche
     `NSLocationAlwaysAndWhenInUseUsageDescription` (il plugin
     `geolocator` referenzia l'API "Always" nel codice compilato; Apple la
@@ -266,7 +273,7 @@ Base URL: `https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/
 |---|---|---|
 | GET | `/me` | Utente corrente + ruoli (CSV) |
 | GET | `/assignedProjects` + `/assignedJobTasks` | Tutte le commesse aperte (visibili a tutti, nessun filtro per dipendente) con `projectType` (Standard/Service); le attività di tipo Registrazione arrivano dalla seconda chiamata e l'app le abbina per `projectId` |
-| POST | `/timePunches` | Timbratura (entrata/uscita/pausa), con GPS opzionale |
+| POST | `/timePunches` | Timbratura (entrata/uscita/pausa). **Non più usata dall'app dal 14.11.2026** (timbrature tolte); l'API resta in BC |
 | POST | `/timeEntries` | Riga ore: `hoursWorked` + `hoursBillable` (uguali per Standard, distinti per Service) |
 | POST | `/serviceReports` | Bollettino: materiali, `photos` (array di `{photoBase64}`), firme base64 |
 | GET | `/vacationBalances` | Saldo ferie in ore |
@@ -282,7 +289,7 @@ Flutter, sezione 4.
 
 **Completati e testati (almeno in parte) end-to-end:**
 - Login (Azure AD, con tutte le insidie della sezione 4 risolte)
-- Timbrature (con GPS)
+- ~~Timbrature (con GPS)~~: tolte dall'app il 14.11.2026 su richiesta del cliente
 - Ore su progetti (con split ore stipendio/fattura per Service)
 - Ferie, Assenze, Note spese
 - Ruoli e Approvazioni (schermata in app per responsabile Cantiere/Progetti)

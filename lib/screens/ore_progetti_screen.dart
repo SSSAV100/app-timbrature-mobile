@@ -3,11 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/theme.dart';
-import '../core/work_hours.dart';
 import '../models/project.dart';
 import '../models/project_task.dart';
 import '../models/time_entry.dart';
-import '../models/timesheet_entry.dart' show SyncStatus, TimesheetPunch;
+import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
@@ -21,12 +20,9 @@ class OreProgettiScreen extends StatefulWidget {
 }
 
 class _OreProgettiScreenState extends State<OreProgettiScreen> {
-  static const _tolerance = Duration(minutes: 5);
-
   DateTime _selectedDate = DateTime.now();
   List<Project> _projects = [];
   List<TimeEntry> _entries = [];
-  Duration _workedDuration = Duration.zero;
   bool _isLoading = true;
   String? _loadError;
 
@@ -48,13 +44,11 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
       final results = await Future.wait([
         BcApiService.instance.fetchAssignedProjects(),
         LocalDbService.instance.getTimeEntriesForDate(_selectedDate),
-        LocalDbService.instance.getPunchesForDate(_selectedDate),
       ]);
 
       setState(() {
         _projects = results[0] as List<Project>;
         _entries = results[1] as List<TimeEntry>;
-        _workedDuration = calculateWorkedDuration(results[2] as List<TimesheetPunch>);
       });
     } catch (_) {
       setState(() {
@@ -68,10 +62,6 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   double get _totalEnteredHours =>
       _entries.fold(0.0, (sum, e) => sum + e.hoursWorked);
 
-  double get _workedHours => _workedDuration.inMinutes / 60.0;
-
-  bool get _hoursMatch =>
-      (_totalEnteredHours - _workedHours).abs() * 60 <= _tolerance.inMinutes;
 
   Future<void> _changeDate(int deltaDays) async {
     setState(() => _selectedDate = _selectedDate.add(Duration(days: deltaDays)));
@@ -215,35 +205,16 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
         color: AppColors.accentBg,
         borderRadius: BorderRadius.circular(14),
       ),
+      // Timbrature tolte su richiesta del cliente (14.11.2026): niente più
+      // confronto ore timbrate / ore inserite, solo il totale del giorno.
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Ore timbrate', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
-                Text(
-                  '${_workedHours.toStringAsFixed(2)} h',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+            child: Text('Ore inserite nel giorno', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Ore ripartite (stipendio)', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
-                Text(
-                  '${_totalEnteredHours.toStringAsFixed(2)} h',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            _hoursMatch ? Icons.check_circle : Icons.error_outline,
-            color: _hoursMatch ? AppColors.success : Colors.orange,
+          Text(
+            '${_totalEnteredHours.toStringAsFixed(2)} h',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
         ],
       ),
