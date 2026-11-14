@@ -98,6 +98,13 @@
 
 ### 3.2b Registrazione delle ore
 
+- **Orari Dalle-Alle** (14.11.2026, richiesta della commissione paritetica):
+  ogni riga ore, di progetto o Service, ha inizio e fine. Le ore si
+  ricavano da lì e BC le divide in mattino/pomeriggio alle 12:00 (pagina
+  BC "Ore mattino/pomeriggio", esportabile in Excel). Una giornata normale
+  sono due righe (es. 07:00-12:00 e 13:00-16:30). Service: le ore stipendio
+  sono Dalle-Alle, le ore Service da fatturare restano a parte.
+
 - Ore Standard entro l'orario contrattuale giornaliero: registrate subito;
   oltre: straordinario, in approvazione al Capo Cantiere della commessa.
 - Tutte le ore dall'app vanno sulla commessa con **Tipo riga = Budget e

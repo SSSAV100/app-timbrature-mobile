@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../core/local_files.dart';
 import '../core/service_report_pdf.dart';
 import '../core/theme.dart';
+import '../core/work_time.dart';
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import '../services/bc_api_service.dart';
@@ -43,7 +44,12 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
 
   // Ore proposte: tempo da "Inizia" a ora, arrotondato al quarto d'ora.
   final _hoursServiceController = TextEditingController();
-  final _hoursSalaryController = TextEditingController();
+  // Orari Dalle-Alle (commissione paritetica): Dalle = Inizia (se oggi),
+  // Alle = adesso. Le ore stipendio sono la durata; le ore Service la
+  // seguono finché il tecnico non le cambia.
+  TimeOfDay? _start;
+  TimeOfDay? _end;
+  bool _serviceEdited = false;
   bool _registerHours = true;
   List<WorkType> _workTypes = [];
   WorkType? _workType;
@@ -69,12 +75,13 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
 
     // Ore già inserite a mano: nessuna proposta (si possono aggiungere).
     _registerHours = _alreadyEnteredHours == 0;
-    final proposed = _proposedHours();
-    if (proposed != null) {
-      final text = _format(proposed);
-      _hoursServiceController.text = text;
-      _hoursSalaryController.text = text;
+    final now = DateTime.now();
+    if (_startedAt != null &&
+        _startedAt!.year == now.year && _startedAt!.month == now.month && _startedAt!.day == now.day) {
+      _start = TimeOfDay.fromDateTime(_startedAt!);
     }
+    _end = TimeOfDay.fromDateTime(now);
+    _syncServiceHours();
 
     BcApiService.instance.fetchWorkTypes().then((types) {
       if (!mounted) return;
@@ -88,12 +95,9 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
     });
   }
 
-  double? _proposedHours() {
-    if (_startedAt == null) return null;
-    final minutes = DateTime.now().difference(_startedAt!).inMinutes;
-    if (minutes <= 0) return null;
-    final quarters = (minutes / 15).round();
-    return (quarters < 1 ? 1 : quarters) / 4;
+  void _syncServiceHours() {
+    final hours = WorkTime.hoursBetween(_start, _end);
+    if (!_serviceEdited && hours != null) _hoursServiceController.text = _format(hours);
   }
 
   String _format(double hours) => hours == hours.roundToDouble() ? hours.toStringAsFixed(0) : hours.toString();
@@ -106,7 +110,6 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
     _workDoneController.dispose();
     _clientNameController.dispose();
     _hoursServiceController.dispose();
-    _hoursSalaryController.dispose();
     super.dispose();
   }
 
@@ -154,15 +157,18 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
       return;
     }
     final hoursService = _parse(_hoursServiceController);
-    final hoursSalary = _parse(_hoursSalaryController);
+    final hoursSalary = WorkTime.hoursBetween(_start, _end);
     if (_registerHours) {
       if (_workType == null) {
         _snack('Scegli il tipo lavoro delle ore.');
         return;
       }
-      if (hoursService == null || hoursSalary == null || hoursService < 0 || hoursSalary < 0 ||
-          (hoursService == 0 && hoursSalary == 0)) {
-        _snack('Controlla le ore Service e stipendio.');
+      if (hoursSalary == null) {
+        _snack('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
+        return;
+      }
+      if (hoursService == null || hoursService < 0) {
+        _snack('Le ore Service devono essere un numero (0 se non si fatturano).');
         return;
       }
     }
@@ -179,6 +185,8 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
           'workTypeCode': _workType!.code,
           'hoursService': hoursService,
           'hoursSalary': hoursSalary,
+          'startTime': WorkTime.toBc(_start!),
+          'endTime': WorkTime.toBc(_end!),
         };
         await _queue(ServiceActionKind.hours, hoursPayload);
         pdfActions.add(ServiceAction(
@@ -249,7 +257,7 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
     final timeFormat = DateFormat('HH:mm');
     final hint = _startedAt == null
         ? 'Intervento senza ora di inizio: inserisci le ore.'
-        : 'Iniziato alle ${timeFormat.format(_startedAt!)}: ore proposte fino ad ora, modificabili.';
+        : 'Iniziato alle ${timeFormat.format(_startedAt!)}: orario proposto fino ad ora, modificabile.';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -281,24 +289,27 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
               onChanged: (t) => setState(() => _workType = t),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _hoursServiceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Ore Service'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _hoursSalaryController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Ore stipendio'),
-                  ),
-                ),
-              ],
+            TimeRangeFields(
+              start: _start,
+              end: _end,
+              onStartChanged: (t) => setState(() {
+                _start = t;
+                _syncServiceHours();
+              }),
+              onEndChanged: (t) => setState(() {
+                _end = t;
+                _syncServiceHours();
+              }),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _hoursServiceController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => _serviceEdited = true,
+              decoration: const InputDecoration(
+                labelText: 'Ore Service',
+                helperText: 'Da fatturare al cliente (le ore stipendio sono Dalle-Alle)',
+              ),
             ),
           ],
         ],

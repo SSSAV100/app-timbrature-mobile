@@ -169,6 +169,12 @@ in coda locale per un nuovo tentativo automatico.
 
 ### `POST /timeEntries`
 
+> **Dal 14.11.2026 con orari Dalle-Alle** (commissione paritetica):
+> `startTime` / `endTime` ("HH:mm:ss"). BC ricava `hoursWorked` dagli orari,
+> arrotondati al centesimo come in app, e divide le ore in mattino e
+> pomeriggio alle 12:00, nel registro "Ore mattino/pomeriggio". L'app
+> impedisce righe sovrapposte nello stesso giorno.
+
 Riceve una singola riga di ripartizione ore su progetto/task (modulo "Ore
 su progetti", vedi specifica funzionale sezione 6). Business Central, una
 volta approvata la riga, si occupa internamente di propagarla sia al
@@ -326,7 +332,8 @@ Sezione Service, su ordini di assistenza standard di BC (vedi
   `contactName`, `phone`, `workDescription`.
 - `POST /serviceEvents`: `{orderNo, itemLineNo, eventType: start|finish|reschedule, occurredAt, note, latitude?, longitude?}`
   (GPS opzionale, preso al momento dell'evento).
-- `POST /serviceHours`: `{orderNo, itemLineNo, date, workTypeCode, hoursService, hoursSalary, note}`.
+- `POST /serviceHours`: `{orderNo, itemLineNo, date, workTypeCode, hoursService, hoursSalary, startTime, endTime, note}`.
+  `startTime`/`endTime` ("HH:mm:ss"): BC ricava le ore stipendio dagli orari e le divide in mattino/pomeriggio.
   Le ore Service vanno sull'ordine (fattura), le ore stipendio su SwissSalary.
 - `POST /serviceMaterials`: `{orderNo, itemLineNo, itemNo, quantity}`.
 - `POST /serviceAttachments`: `{orderNo, fileName, fileBase64}`, allegato all'ordine (firma, foto, PDF).

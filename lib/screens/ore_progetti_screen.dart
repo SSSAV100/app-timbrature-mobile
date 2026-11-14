@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/theme.dart';
+import '../core/work_time.dart';
 import '../models/project.dart';
 import '../models/project_task.dart';
 import '../models/time_entry.dart';
@@ -99,6 +100,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
       builder: (_) => _AddTimeEntrySheet(
         projects: _projects,
         date: _selectedDate,
+        existingEntries: _entries,
       ),
     );
 
@@ -233,7 +235,10 @@ class _AddTimeEntrySheet extends StatefulWidget {
   final List<Project> projects;
   final DateTime date;
 
-  const _AddTimeEntrySheet({required this.projects, required this.date});
+  /// Righe già inserite nel giorno, per non sovrapporre gli orari.
+  final List<TimeEntry> existingEntries;
+
+  const _AddTimeEntrySheet({required this.projects, required this.date, this.existingEntries = const []});
 
   @override
   State<_AddTimeEntrySheet> createState() => _AddTimeEntrySheetState();
@@ -241,8 +246,9 @@ class _AddTimeEntrySheet extends StatefulWidget {
 
 class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
   final _uuid = const Uuid();
-  final _hoursWorkedController = TextEditingController();
   final _hoursBillableController = TextEditingController();
+  TimeOfDay? _start;
+  TimeOfDay? _end;
   final _noteController = TextEditingController();
 
   Project? _selectedProject;
@@ -263,7 +269,6 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
 
   @override
   void dispose() {
-    _hoursWorkedController.dispose();
     _hoursBillableController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -285,12 +290,23 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
       return;
     }
 
-    final hoursWorked = double.tryParse(_hoursWorkedController.text.replaceAll(',', '.'));
-    if (_selectedProject == null || hoursWorked == null || hoursWorked <= 0) {
+    // Orari Dalle-Alle (commissione paritetica): le ore si ricavano da qui.
+    final hoursWorked = WorkTime.hoursBetween(_start, _end);
+    if (_selectedProject == null || hoursWorked == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inserisci un numero di ore stipendio valido.')),
+        const SnackBar(content: Text('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).')),
       );
       return;
+    }
+    for (final other in widget.existingEntries) {
+      final oStart = WorkTime.parse(other.startTime);
+      final oEnd = WorkTime.parse(other.endTime);
+      if (oStart != null && oEnd != null && WorkTime.overlaps(_start!, _end!, oStart, oEnd)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Si sovrappone alla riga ${WorkTime.format(oStart)}-${WorkTime.format(oEnd)}.')),
+        );
+        return;
+      }
     }
 
     double? hoursBillable;
@@ -311,6 +327,8 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
       date: widget.date,
       hoursWorked: hoursWorked,
       hoursBillable: hoursBillable,
+      startTime: WorkTime.format(_start!),
+      endTime: WorkTime.format(_end!),
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       status: SyncStatus.pending,
     );
@@ -365,10 +383,16 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
             ),
             const SizedBox(height: 12),
 
+            TimeRangeFields(
+              start: _start,
+              end: _end,
+              onStartChanged: (t) => setState(() => _start = t),
+              onEndChanged: (t) => setState(() => _end = t),
+            ),
             if (_isService) ...[
-              // Progetto Service: le ore da caricare sul progetto/fattura
-              // cliente e quelle da caricare sullo stipendio possono
-              // differire, quindi si chiedono separatamente.
+              // Commessa di tipo Service (vecchio flusso): le ore da fatturare
+              // possono differire da quelle lavorate (Dalle-Alle).
+              const SizedBox(height: 12),
               TextField(
                 controller: _hoursBillableController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -377,24 +401,7 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
                   helperText: 'Ore da caricare sul progetto e da fatturare al cliente',
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _hoursWorkedController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Ore stipendio',
-                  helperText: 'Ore da caricare sullo stipendio del dipendente',
-                ),
-              ),
-            ] else
-              // Progetto Standard (Cantieri/Acquedotti): un unico valore,
-              // le stesse ore vanno tanto sul progetto quanto sullo stipendio.
-              TextField(
-                controller: _hoursWorkedController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Ore (es. 3.5)'),
-              ),
-
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,

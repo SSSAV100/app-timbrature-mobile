@@ -52,6 +52,11 @@ class TimeEntryTile extends StatelessWidget {
                     taskDescription,
                     style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
+                if (entry.startTime != null && entry.endTime != null)
+                  Text(
+                    '${entry.startTime} – ${entry.endTime}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
                 if (entry.note != null && entry.note!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),

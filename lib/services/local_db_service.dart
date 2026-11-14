@@ -30,7 +30,7 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
@@ -72,6 +72,11 @@ class LocalDbService {
           await db.execute('ALTER TABLE pending_time_entries ADD COLUMN latitude REAL');
           await db.execute('ALTER TABLE pending_time_entries ADD COLUMN longitude REAL');
         }
+        if (oldVersion < 10) {
+          // Orari Dalle-Alle (commissione paritetica).
+          await db.execute('ALTER TABLE pending_time_entries ADD COLUMN start_time TEXT');
+          await db.execute('ALTER TABLE pending_time_entries ADD COLUMN end_time TEXT');
+        }
       },
     );
   }
@@ -102,6 +107,8 @@ class LocalDbService {
         hours REAL NOT NULL,
         hours_billable REAL,
         note TEXT,
+        start_time TEXT,
+        end_time TEXT,
         latitude REAL,
         longitude REAL,
         status TEXT NOT NULL,

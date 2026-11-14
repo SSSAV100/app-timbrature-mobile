@@ -55,7 +55,9 @@ class ServiceReportPdf {
               pw.Text('Ore', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
               for (final h in hours)
-                pw.Text('${h.payload['date']} · ${h.payload['workTypeCode']} · ${h.payload['hoursService']} h'),
+                pw.Text('${h.payload['date']}'
+                    '${h.payload['startTime'] != null ? ' ${(h.payload['startTime'] as String).substring(0, 5)}–${(h.payload['endTime'] as String).substring(0, 5)}' : ''}'
+                    ' · ${h.payload['workTypeCode']} · ${h.payload['hoursService']} h'),
             ],
             if (materials.isNotEmpty) ...[
               pw.SizedBox(height: 16),

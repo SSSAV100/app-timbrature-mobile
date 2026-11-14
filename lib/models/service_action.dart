@@ -60,11 +60,19 @@ class ServiceAction {
             _ => 'Da riprogrammare',
           },
         ServiceActionKind.hours =>
-          'Ore: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
+          'Ore${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
         ServiceActionKind.material =>
           'Materiale: ${payload['quantity']} × ${payload['itemNo']} ${payload['_itemDescription'] ?? ''}'.trim(),
         ServiceActionKind.attachment => 'Allegato: ${payload['fileName']}',
       };
+
+  // " 07:00–12:00" dagli orari "HH:mm:ss" del payload, se presenti.
+  String _range() {
+    final start = payload['startTime'] as String?;
+    final end = payload['endTime'] as String?;
+    if (start == null || end == null || start.length < 5 || end.length < 5) return '';
+    return ' ${start.substring(0, 5)}–${end.substring(0, 5)}';
+  }
 
   Map<String, dynamic> toDbMap() => {
         'local_id': localId,

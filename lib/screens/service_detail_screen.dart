@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/theme.dart';
+import '../core/work_time.dart';
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
@@ -342,7 +343,10 @@ class _HoursSheet extends StatefulWidget {
 
 class _HoursSheetState extends State<_HoursSheet> {
   final _serviceController = TextEditingController();
-  final _salaryController = TextEditingController();
+  TimeOfDay? _start;
+  TimeOfDay? _end;
+  // Le ore Service seguono la durata finché il tecnico non le cambia.
+  bool _serviceEdited = false;
   final _noteController = TextEditingController();
   DateTime _date = DateTime.now();
   List<WorkType> _workTypes = [];
@@ -366,7 +370,6 @@ class _HoursSheetState extends State<_HoursSheet> {
   @override
   void dispose() {
     _serviceController.dispose();
-    _salaryController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -374,15 +377,25 @@ class _HoursSheetState extends State<_HoursSheet> {
   double? _parse(TextEditingController c) =>
       c.text.trim().isEmpty ? 0 : double.tryParse(c.text.replaceAll(',', '.'));
 
+  void _syncServiceHours() {
+    final hours = WorkTime.hoursBetween(_start, _end);
+    if (!_serviceEdited && hours != null) _serviceController.text = hours.toString();
+  }
+
   void _save() {
     final service = _parse(_serviceController);
-    final salary = _parse(_salaryController);
+    // Ore stipendio = tempo lavorato Dalle-Alle (commissione paritetica).
+    final salary = WorkTime.hoursBetween(_start, _end);
+    if (salary == null) {
+      _snack('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
+      return;
+    }
     if (_workType == null) {
       _snack('Scegli il tipo lavoro.');
       return;
     }
-    if (service == null || salary == null || service < 0 || salary < 0 || (service == 0 && salary == 0)) {
-      _snack('Inserisci ore Service e/o ore stipendio valide.');
+    if (service == null || service < 0) {
+      _snack('Le ore Service devono essere un numero (0 se non si fatturano).');
       return;
     }
     Navigator.of(context).pop(<String, dynamic>{
@@ -390,6 +403,8 @@ class _HoursSheetState extends State<_HoursSheet> {
       'workTypeCode': _workType!.code,
       'hoursService': service,
       'hoursSalary': salary,
+      'startTime': WorkTime.toBc(_start!),
+      'endTime': WorkTime.toBc(_end!),
       if (_noteController.text.trim().isNotEmpty) 'note': _noteController.text.trim(),
     });
   }
@@ -438,23 +453,29 @@ class _HoursSheetState extends State<_HoursSheet> {
                 onChanged: (t) => setState(() => _workType = t),
               ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _serviceController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Ore Service',
-                helperText: 'Ore da fatturare al cliente sull\'ordine',
-              ),
+            TimeRangeFields(
+              start: _start,
+              end: _end,
+              onStartChanged: (t) => setState(() {
+                _start = t;
+                _syncServiceHours();
+              }),
+              onEndChanged: (t) => setState(() {
+                _end = t;
+                _syncServiceHours();
+              }),
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _salaryController,
+              controller: _serviceController,
+              onChanged: (_) => _serviceEdited = true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Ore stipendio',
-                helperText: 'Ore da pagare al dipendente',
+                labelText: 'Ore Service',
+                helperText: 'Da fatturare al cliente (le ore stipendio sono Dalle-Alle)',
               ),
             ),
+            const SizedBox(height: 12),
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,
