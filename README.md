@@ -324,7 +324,8 @@ Sezione Service, su ordini di assistenza standard di BC (vedi
   `finished` / `reschedule`), `orderDescription`, `itemDescription`,
   `priority`, `zoneCode`, `customerName`, `address`, `postCode`, `city`,
   `contactName`, `phone`, `workDescription`.
-- `POST /serviceEvents`: `{orderNo, itemLineNo, eventType: start|finish|reschedule, occurredAt, note}`.
+- `POST /serviceEvents`: `{orderNo, itemLineNo, eventType: start|finish|reschedule, occurredAt, note, latitude?, longitude?}`
+  (GPS opzionale, preso al momento dell'evento).
 - `POST /serviceHours`: `{orderNo, itemLineNo, date, workTypeCode, hoursService, hoursSalary, note}`.
   Le ore Service vanno sull'ordine (fattura), le ore stipendio su SwissSalary.
 - `POST /serviceMaterials`: `{orderNo, itemLineNo, itemNo, quantity}`.
@@ -438,8 +439,10 @@ file .dart da modificare).
 
 ### Geolocalizzazione al momento della timbratura (calcolo trasferta)
 
-> **Tolta il 14.11.2026** insieme alle timbrature: niente più `geolocator`
-> né permessi di posizione. La descrizione sotto è solo storica.
+> **14.11.2026**: tolta dalla timbratura (che non c'è più) e spostata sul
+> salvataggio delle righe ore (`timeEntries`, campi `latitude`/`longitude`)
+> e sugli eventi degli interventi (`serviceEvents`). La descrizione sotto,
+> sul calcolo della trasferta dal punto di timbratura, è solo storica.
 
 Ogni timbratura include ora, quando disponibile, un singolo punto GPS
 (campi `latitude`/`longitude` già presenti nel payload di `/timePunches`

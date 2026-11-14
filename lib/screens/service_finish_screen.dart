@@ -14,6 +14,7 @@ import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
+import '../services/location_service.dart';
 import 'signature_pad_screen.dart';
 
 /// Chiusura di un intervento: lavoro svolto, foto, nome e firma del cliente.
@@ -204,7 +205,11 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
         await _queue(ServiceActionKind.attachment, {'fileName': 'foto_${i + 1}_$stamp.jpg'}, filePath: _photoPaths[i]);
       }
       await _queue(ServiceActionKind.attachment, {'fileName': 'rapporto_${_a.orderNo}_$stamp.pdf'}, filePath: pdf.path);
+      // Termina: un punto GPS (mai bloccante).
+      final position = await LocationService.getCurrentPositionOrNull();
       await _queue(ServiceActionKind.event, {
+        if (position != null) 'latitude': position.latitude,
+        if (position != null) 'longitude': position.longitude,
         'eventType': 'finish',
         'occurredAt': DateTime.now().toUtc().toIso8601String(),
         'note': clientName.isEmpty ? workDone : '$workDone (firmato da $clientName)',

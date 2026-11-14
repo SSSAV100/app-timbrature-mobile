@@ -4,7 +4,7 @@ description: >
   integrata direttamente con Microsoft Dynamics 365 Business Central
   (nessun middleware esterno).
 publish_to: 'none'
-version: 0.2.0+10
+version: 0.2.1+11
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -36,6 +36,11 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.4.2
 
+
+  # Un solo punto GPS al salvataggio di una riga ore e su Inizia/Termina/Da
+  # riprogrammare degli interventi. Permesso "quando in uso", nessun
+  # tracciamento continuo; mai bloccante se negato o spento.
+  geolocator: ^14.0.2
 
   # Modulo Bollettino di intervento (progetti Service): firma cliente,
   # foto, generazione PDF e condivisione immediata.

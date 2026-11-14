@@ -30,7 +30,7 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
@@ -67,6 +67,11 @@ class LocalDbService {
         if (oldVersion < 8) {
           await _createServiceActionsTable(db);
         }
+        if (oldVersion < 9) {
+          // Punto GPS al salvataggio della riga ore.
+          await db.execute('ALTER TABLE pending_time_entries ADD COLUMN latitude REAL');
+          await db.execute('ALTER TABLE pending_time_entries ADD COLUMN longitude REAL');
+        }
       },
     );
   }
@@ -97,6 +102,8 @@ class LocalDbService {
         hours REAL NOT NULL,
         hours_billable REAL,
         note TEXT,
+        latitude REAL,
+        longitude REAL,
         status TEXT NOT NULL,
         error_message TEXT
       )

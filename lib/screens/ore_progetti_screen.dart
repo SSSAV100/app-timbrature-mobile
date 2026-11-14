@@ -9,6 +9,7 @@ import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
+import '../services/location_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/time_entry_tile.dart';
 
@@ -103,7 +104,9 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
 
     if (result == null) return;
 
-    await LocalDbService.instance.saveTimeEntry(result);
+    // Un punto GPS al salvataggio: mai bloccante (null se negato/spento).
+    final position = await LocationService.getCurrentPositionOrNull();
+    await LocalDbService.instance.saveTimeEntry(result.withPosition(position?.latitude, position?.longitude));
     await _loadEverything();
     SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
   }

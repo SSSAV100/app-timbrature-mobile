@@ -40,7 +40,7 @@
 | Login | `flutter_appauth` **12.x o successivo** | Vedi sezione 4: la 11.x manca del supporto UIScene, causa blocchi silenziosi |
 | Storage sicuro token | `flutter_secure_storage` | Keychain iOS / Keystore Android |
 | Database locale (coda offline) | `sqflite` | Coda temporanea di ciò che va inviato; BC resta l'unica fonte di verità. Unica copia locale di dati BC: l'ultimo elenco commesse/attività (`cache/assigned_projects.json`), usato solo senza rete per poter timbrare e registrare ore offline |
-| Geolocalizzazione | — (tolta il 14.11.2026) | Serviva solo alla timbratura, rimossa su richiesta del cliente: niente più `geolocator` né permessi di posizione |
+| Geolocalizzazione | `geolocator` | Dal 14.11.2026: un punto GPS al salvataggio di una riga ore (`timeEntries`) e su Inizia/Termina/Da riprogrammare (`serviceEvents`). Permesso "quando in uso", mai bloccante, nessun tracciamento continuo. Non più sulla timbratura, tolta |
 | Foto | `image_picker` | Fotocamera o galleria |
 | Firma su schermo | `signature` | Solo per il bollettino Service |
 | PDF | `pdf` | Generato localmente per il bollettino, condiviso subito via `share_plus` |
@@ -113,6 +113,8 @@
 > trasferta dei cantieri dal punto GPS qui sotto non ha più dati in
 > ingresso: se servirà, va ripensato. Per il Service la trasferta è per
 > zona di servizio (vedi sezione 3.1 e `SERVICE_BC_ANALYSIS.md`).
+> Il GPS resta, ma su righe ore e interventi (dove si trovava il
+> dipendente), non per calcolare la trasferta.
 
 - (Storico) L'app catturava **solo un punto GPS** al momento della timbratura (non tracciamento continuo).
 - Il **calcolo della distanza e la fascia di trasferta li fa Business Central**, non l'app: la sede centrale e le fasce del CCL sono configurate lato BC, così cambiano senza ricompilare l'app.
@@ -213,9 +215,8 @@ Ordinate per probabilità di essere la causa di un problema simile in futuro.
    native separate, entrambe necessarie).
 
 10. **Permessi iOS da dichiarare in `Info.plist`**:
-    `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`.
-    Dal 14.11.2026 niente posizione (geolocator tolto con le timbrature).
-    Se tornasse il GPS servono `NSLocationWhenInUseUsageDescription` e — anche se l'app chiede solo
+    `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`,
+    `NSLocationWhenInUseUsageDescription` e — anche se l'app chiede solo
     il permesso "quando in uso" — anche
     `NSLocationAlwaysAndWhenInUseUsageDescription` (il plugin
     `geolocator` referenzia l'API "Always" nel codice compilato; Apple la

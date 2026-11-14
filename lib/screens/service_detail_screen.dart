@@ -9,6 +9,7 @@ import '../models/service_assignment.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
+import '../services/location_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/sync_status_dot.dart';
 import 'service_finish_screen.dart';
@@ -49,6 +50,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   ServiceState get _state => ServiceAction.effectiveState(_a.state, _actions);
 
   Future<void> _queue(ServiceActionKind kind, Map<String, dynamic> payload, {String? filePath}) async {
+    // Inizia / Da riprogrammare: un punto GPS (mai bloccante).
+    if (kind == ServiceActionKind.event) {
+      final position = await LocationService.getCurrentPositionOrNull();
+      if (position != null) {
+        payload = {...payload, 'latitude': position.latitude, 'longitude': position.longitude};
+      }
+    }
     await LocalDbService.instance.saveServiceAction(ServiceAction(
       localId: _uuid.v4(),
       createdAt: DateTime.now(),

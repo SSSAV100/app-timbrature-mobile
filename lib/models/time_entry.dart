@@ -22,6 +22,8 @@ class TimeEntry {
   final DateTime date; // solo la data (senza ora) del giorno lavorativo
   final double hoursWorked;
   final double? hoursBillable; // null per i progetti Standard: coincide con hoursWorked
+  final double? latitude; // punto GPS al salvataggio, se disponibile
+  final double? longitude;
   final String? note;
   SyncStatus status;
   String? errorMessage;
@@ -34,6 +36,8 @@ class TimeEntry {
     this.taskId,
     this.hoursBillable,
     this.note,
+    this.latitude,
+    this.longitude,
     this.status = SyncStatus.pending,
     this.errorMessage,
   });
@@ -47,6 +51,21 @@ class TimeEntry {
   bool get hasDistinctBillableHours =>
       hoursBillable != null && hoursBillable != hoursWorked;
 
+  /// Copia con il punto GPS del salvataggio (null se non disponibile).
+  TimeEntry withPosition(double? lat, double? lng) => TimeEntry(
+        localId: localId,
+        projectId: projectId,
+        taskId: taskId,
+        date: date,
+        hoursWorked: hoursWorked,
+        hoursBillable: hoursBillable,
+        note: note,
+        latitude: lat,
+        longitude: lng,
+        status: status,
+        errorMessage: errorMessage,
+      );
+
   /// Payload inviato all'API AL di Business Central.
   Map<String, dynamic> toBcJson() {
     return {
@@ -56,6 +75,8 @@ class TimeEntry {
       'hoursWorked': hoursWorked,
       'hoursBillable': effectiveBillableHours,
       if (note != null && note!.isNotEmpty) 'note': note,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
     };
   }
 
@@ -68,6 +89,8 @@ class TimeEntry {
       'hours': hoursWorked,
       'hours_billable': hoursBillable,
       'note': note,
+      'latitude': latitude,
+      'longitude': longitude,
       'status': status.name,
       'error_message': errorMessage,
     };
@@ -82,6 +105,8 @@ class TimeEntry {
       hoursWorked: (map['hours'] as num).toDouble(),
       hoursBillable: (map['hours_billable'] as num?)?.toDouble(),
       note: map['note'] as String?,
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
       status: SyncStatus.values.byName(map['status'] as String),
       errorMessage: map['error_message'] as String?,
     );
