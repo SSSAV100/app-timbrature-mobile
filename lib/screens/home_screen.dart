@@ -38,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isPunching = false;
   String? _loadError;
 
+  /// Errore nella lettura del profilo (GET /me): senza profilo mancano nome,
+  /// Approvazioni e Interventi, quindi va detto invece di mostrare solo "...".
+  String? _userError;
+
   AppUser? _currentUser;
   int? _pendingApprovalsCount;
 
@@ -73,14 +77,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadCurrentUser() async {
     try {
       final user = await BcApiService.instance.fetchCurrentUser();
-      setState(() => _currentUser = user);
+      setState(() {
+        _currentUser = user;
+        _userError = null;
+      });
       if (user.canApprove) {
         final approvals = await BcApiService.instance.fetchPendingApprovals();
         setState(() => _pendingApprovalsCount = approvals.length);
       }
     } catch (e, stackTrace) {
       developer.log('fetchCurrentUser fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
-      // Nessun ruolo rilevato: la piastrella Approvazioni resta nascosta.
+      // Senza profilo le piastrelle Approvazioni e Interventi restano nascoste.
+      if (mounted) {
+        setState(() => _userError = e is BcApiException
+            ? 'Profilo non letto da Business Central: $e'
+            : 'Profilo non disponibile: verifica la connessione o rifai il login.');
+      }
     }
   }
 
@@ -200,6 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            if (_userError != null) ...[
+              const SizedBox(height: 8),
+              Text(_userError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
+            ],
             const SizedBox(height: 20),
             _buildPunchCard(),
             const SizedBox(height: 20),
