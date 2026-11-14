@@ -320,11 +320,13 @@ SwissSalary non accetta la riga spese con commessa senza attività.
 
 ### Bollettino delle ore di progetto (facoltativo): `POST /projectReports` e collegati
 
-Da "Ore su progetti" → **Bollettino**: commessa e giorno, ore Dalle-Alle già
-inserite, lavoro svolto, materiali, foto, nome e firma del cliente. PDF
-condiviso subito; in coda, in quest'ordine:
+**Sulla singola voce ore** (scelta del cliente): in "Ore su progetti" ogni riga
+ha il pulsante **Bollettino**, con la spunta verde se è già fatto. Commessa,
+attività e Dalle-Alle sono quelli della voce; si aggiungono lavoro svolto,
+materiali, foto, nome e firma del cliente. PDF condiviso subito; in coda, in
+quest'ordine:
 
-- `POST /projectReports`: `{reportId (Guid generato dall'app), projectId, date, workDescription, clientName}`.
+- `POST /projectReports`: `{reportId (Guid generato dall'app), projectId, taskId, date, startTime, endTime, workDescription, clientName}`.
 - `POST /projectReportMaterials`: `{reportId, projectId, itemNo, quantity}`, solo registrati in BC.
 - `POST /projectAttachments`: `{projectId, fileName, fileBase64}`: firma, foto e PDF
   negli allegati della commessa.

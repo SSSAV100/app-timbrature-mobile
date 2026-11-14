@@ -18,19 +18,17 @@ import '../services/sync_service.dart';
 import '../widgets/material_sheet.dart';
 import 'signature_pad_screen.dart';
 
-/// Bollettino facoltativo delle ore di progetto (richiesta del cliente,
-/// 14.11.2026): commessa e giorno, ore Dalle-Alle già inserite, lavoro
-/// svolto, materiali, foto e firma del cliente. Genera il PDF (condiviso
-/// subito) e mette in coda verso BC: bollettino, materiali, firma, foto e
-/// PDF come allegati della commessa. Restituisce true se inviato.
+/// Bollettino facoltativo della singola voce ore di progetto (richiesta del
+/// cliente, 14.11.2026): commessa, attività e orario Dalle-Alle della voce,
+/// lavoro svolto, materiali, foto e firma del cliente. Genera il PDF
+/// (condiviso subito) e mette in coda verso BC: bollettino, materiali,
+/// firma, foto e PDF come allegati della commessa. Restituisce true se
+/// inviato.
 class ProjectReportScreen extends StatefulWidget {
-  final List<Project> projects;
-  final DateTime date;
+  final Project project;
+  final TimeEntry entry;
 
-  /// Righe ore del giorno, per proporre la commessa e riportare le ore.
-  final List<TimeEntry> entries;
-
-  const ProjectReportScreen({super.key, required this.projects, required this.date, required this.entries});
+  const ProjectReportScreen({super.key, required this.project, required this.entry});
 
   @override
   State<ProjectReportScreen> createState() => _ProjectReportScreenState();
@@ -43,19 +41,12 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
   final _imagePicker = ImagePicker();
   final List<String> _photoPaths = [];
   final List<Map<String, dynamic>> _materials = [];
-  Project? _project;
   Uint8List? _signature;
   bool _isSaving = false;
   DateTime _queueTime = DateTime.now();
 
-  @override
-  void initState() {
-    super.initState();
-    // Commessa proposta: quella delle ore del giorno, se ce ne sono.
-    final entryProjectIds = widget.entries.map((e) => e.projectId).toSet();
-    _project = widget.projects.where((p) => entryProjectIds.contains(p.id)).firstOrNull ??
-        (widget.projects.isNotEmpty ? widget.projects.first : null);
-  }
+  Project get _project => widget.project;
+  TimeEntry get _entry => widget.entry;
 
   @override
   void dispose() {
@@ -63,10 +54,6 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
     _clientNameController.dispose();
     super.dispose();
   }
-
-  List<TimeEntry> get _projectHours =>
-      widget.entries.where((e) => e.projectId == _project?.id).toList()
-        ..sort((a, b) => (a.startTime ?? '').compareTo(b.startTime ?? ''));
 
   Future<void> _addMaterial() async {
     final material = await showModalBottomSheet<Map<String, dynamic>>(
@@ -101,9 +88,9 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
       localId: _uuid.v4(),
       createdAt: _queueTime,
       kind: kind,
-      orderNo: _project!.id,
+      orderNo: _project.id,
       itemLineNo: 0,
-      payload: {'projectId': _project!.id, ...payload},
+      payload: {'projectId': _project.id, ...payload},
       filePath: filePath,
     ));
   }
@@ -111,10 +98,6 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
   Future<void> _send() async {
     final workDone = _workDoneController.text.trim();
     final clientName = _clientNameController.text.trim();
-    if (_project == null) {
-      _snack('Scegli la commessa.');
-      return;
-    }
     if (workDone.isEmpty) {
       _snack('Descrivi il lavoro svolto.');
       return;
@@ -128,20 +111,26 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
     try {
       final reportId = _uuid.v4();
       final stamp = DateTime.now().millisecondsSinceEpoch;
-      final day = DateFormat('yyyy-MM-dd').format(widget.date);
+      final day = DateFormat('yyyy-MM-dd').format(_entry.date);
       final pdf = await ProjectReportPdf.generate(
-        project: _project!,
-        date: widget.date,
-        hours: _projectHours,
+        project: _project,
+        date: _entry.date,
+        hours: [_entry],
         materials: _materials,
         workDone: workDone,
         clientName: clientName,
         signaturePng: _signature!,
       );
-      final signaturePath = await LocalFiles.saveBytes(_signature!, 'firma_${_project!.id}_$stamp.png');
+      final signaturePath = await LocalFiles.saveBytes(_signature!, 'firma_${_project.id}_$stamp.png');
 
       await _queue(ServiceActionKind.projectReport, {
         'reportId': reportId,
+        // Voce ore del bollettino: "_entryId" resta solo nell'app (segno di
+        // spunta sulla riga), il resto va in BC.
+        '_entryId': _entry.localId,
+        if (_entry.taskId != null) 'taskId': _entry.taskId,
+        if (_entry.startTime != null) 'startTime': '${_entry.startTime}:00',
+        if (_entry.endTime != null) 'endTime': '${_entry.endTime}:00',
         'date': day,
         'workDescription': workDone,
         'clientName': clientName,
@@ -157,7 +146,7 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
       await _queue(ServiceActionKind.projectAttachment, {'fileName': 'bollettino_${day}_$stamp.pdf'}, filePath: pdf.path);
       SyncService.instance.syncAll();
 
-      await SharePlus.instance.share(ShareParams(files: [XFile(pdf.path)], subject: 'Bollettino ${_project!.description}'));
+      await SharePlus.instance.share(ShareParams(files: [XFile(pdf.path)], subject: 'Bollettino ${_project.description}'));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       _snack('Errore nel bollettino: $e');
@@ -168,36 +157,26 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
 
   void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
+  String get _taskDescription =>
+      _project.tasks.where((t) => t.id == _entry.taskId).map((t) => t.description).firstOrNull ?? (_entry.taskId ?? '');
+
   @override
   Widget build(BuildContext context) {
-    final hours = _projectHours;
-    final total = hours.fold(0.0, (sum, e) => sum + e.hoursWorked);
-
     return Scaffold(
-      appBar: AppBar(title: Text('Bollettino ${DateFormat('dd.MM.yyyy').format(widget.date)}')),
+      appBar: AppBar(title: Text('Bollettino ${DateFormat('dd.MM.yyyy').format(_entry.date)}')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
         children: [
-          DropdownButtonFormField<Project>(
-            initialValue: _project,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Commessa'),
-            items: widget.projects
-                .map((p) => DropdownMenuItem(value: p, child: Text(p.description, overflow: TextOverflow.ellipsis)))
-                .toList(),
-            onChanged: (p) => setState(() => _project = p),
-          ),
-          const SizedBox(height: 16),
-          const Text('Ore del giorno', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(_project.description, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          if (hours.isEmpty)
-            const Text('Nessuna ora inserita su questa commessa nel giorno.', style: TextStyle(fontSize: 13))
-          else ...[
-            for (final e in hours)
-              Text('${e.startTime ?? ''}–${e.endTime ?? ''} · ${e.hoursWorked.toStringAsFixed(2)} h',
-                  style: const TextStyle(fontSize: 13)),
-            Text('Totale ${total.toStringAsFixed(2)} h', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          ],
+          Text(
+            [
+              if (_taskDescription.isNotEmpty) _taskDescription,
+              if (_entry.startTime != null && _entry.endTime != null) '${_entry.startTime}–${_entry.endTime}',
+              '${_entry.hoursWorked.toStringAsFixed(2)} h',
+            ].join(' · '),
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _workDoneController,

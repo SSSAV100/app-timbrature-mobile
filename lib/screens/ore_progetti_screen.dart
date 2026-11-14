@@ -29,6 +29,9 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   List<Project> _projects = [];
   List<TimeEntry> _entries = [];
   List<ServiceAction> _pendingReports = [];
+
+  /// Voci ore che hanno già un bollettino (inviato o in coda).
+  Set<String> _reportedEntryIds = {};
   bool _isLoading = true;
   String? _loadError;
 
@@ -57,12 +60,14 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
                 a.kind == ServiceActionKind.projectMaterial ||
                 a.kind == ServiceActionKind.projectAttachment)
             .toList()),
+        _loadReportedEntryIds(),
       ]);
 
       setState(() {
         _projects = results[0] as List<Project>;
         _entries = results[1] as List<TimeEntry>;
         _pendingReports = results[2] as List<ServiceAction>;
+        _reportedEntryIds = results[3] as Set<String>;
       });
     } catch (_) {
       setState(() {
@@ -125,9 +130,25 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
     SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
   }
 
-  Future<void> _openProjectReport() async {
+  Future<Set<String>> _loadReportedEntryIds() async {
+    final ids = <String>{};
+    final projectIds = (await LocalDbService.instance.getTimeEntriesForDate(_selectedDate)).map((e) => e.projectId).toSet();
+    for (final projectId in projectIds) {
+      final actions = await LocalDbService.instance.getServiceActionsFor(projectId, 0);
+      for (final a in actions.where((a) => a.kind == ServiceActionKind.projectReport)) {
+        final id = a.payload['_entryId'] as String?;
+        if (id != null) ids.add(id);
+      }
+    }
+    return ids;
+  }
+
+  /// Bollettino facoltativo della singola voce ore.
+  Future<void> _openProjectReport(TimeEntry entry) async {
+    final project = _projectFor(entry.projectId);
+    if (project == null) return;
     final sent = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ProjectReportScreen(projects: _projects, date: _selectedDate, entries: _entries),
+      builder: (_) => ProjectReportScreen(project: project, entry: entry),
     ));
     if (sent == true) {
       await _loadEverything();
@@ -148,17 +169,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
         : DateFormat('EEEE d MMMM', 'it_IT').format(_selectedDate);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ore su progetti'),
-        actions: [
-          // Bollettino facoltativo della commessa per il giorno mostrato.
-          TextButton.icon(
-            onPressed: _projects.isEmpty ? null : _openProjectReport,
-            icon: const Icon(Icons.description_outlined),
-            label: const Text('Bollettino'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Ore su progetti')),
       body: RefreshIndicator(
         onRefresh: _loadEverything,
         child: ListView(
@@ -215,6 +226,8 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
                   entry: entry,
                   project: _projectFor(entry.projectId),
                   onDelete: () => _deleteEntry(entry),
+                  hasReport: _reportedEntryIds.contains(entry.localId),
+                  onReport: _projectFor(entry.projectId) == null ? null : () => _openProjectReport(entry),
                 ),
               ),
             if (_pendingReports.isNotEmpty) ...[

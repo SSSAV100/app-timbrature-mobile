@@ -13,11 +13,17 @@ class TimeEntryTile extends StatelessWidget {
   final Project? project;
   final VoidCallback? onDelete;
 
+  /// Bollettino facoltativo della voce (ore di progetto).
+  final VoidCallback? onReport;
+  final bool hasReport;
+
   const TimeEntryTile({
     super.key,
     required this.entry,
     required this.project,
     this.onDelete,
+    this.onReport,
+    this.hasReport = false,
   });
 
   @override
@@ -98,6 +104,16 @@ class TimeEntryTile extends StatelessWidget {
                   '${entry.hoursWorked.toStringAsFixed(2)} h',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
+          if (onReport != null)
+            IconButton(
+              tooltip: hasReport ? 'Bollettino fatto' : 'Bollettino',
+              icon: Icon(
+                hasReport ? Icons.task_outlined : Icons.description_outlined,
+                size: 20,
+                color: hasReport ? AppColors.success : AppColors.primary,
+              ),
+              onPressed: onReport,
+            ),
           if (onDelete != null && entry.status != SyncStatus.synced) ...[
             const SizedBox(width: 4),
             IconButton(
