@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../core/config.dart';
@@ -120,6 +121,18 @@ class BcApiService {
   Future<List<MaterialItem>> fetchMaterialItems() async {
     final rows = await _getWithCache('materialItems', 'material_items.json');
     return rows.map(MaterialItem.fromJson).toList();
+  }
+
+  /// Nome e logo della società (Informazioni società in BC) per la home,
+  /// con copia locale per l'offline. Logo null se non caricato in BC.
+  Future<({String name, Uint8List? logo})> fetchCompanyBranding() async {
+    final rows = await _getWithCache('companyBranding', 'company_branding.json');
+    if (rows.isEmpty) return (name: '', logo: null);
+    final logoBase64 = rows.first['logoBase64'] as String? ?? '';
+    return (
+      name: rows.first['name'] as String? ?? '',
+      logo: logoBase64.isEmpty ? null : base64Decode(logoBase64),
+    );
   }
 
   /// True se l'ultima lettura Service ha usato la copia locale.
