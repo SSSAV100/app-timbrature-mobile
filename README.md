@@ -318,6 +318,21 @@ specifica funzionale, sezione 9). Importo sempre in franchi svizzeri
 `projectId` è obbligatorio anche `taskId` (attività della commessa):
 SwissSalary non accetta la riga spese con commessa senza attività.
 
+### Bollettino delle ore di progetto (facoltativo): `POST /projectReports` e collegati
+
+Da "Ore su progetti" → **Bollettino**: commessa e giorno, ore Dalle-Alle già
+inserite, lavoro svolto, materiali, foto, nome e firma del cliente. PDF
+condiviso subito; in coda, in quest'ordine:
+
+- `POST /projectReports`: `{reportId (Guid generato dall'app), projectId, date, workDescription, clientName}`.
+- `POST /projectReportMaterials`: `{reportId, projectId, itemNo, quantity}`, solo registrati in BC.
+- `POST /projectAttachments`: `{projectId, fileName, fileBase64}`: firma, foto e PDF
+  negli allegati della commessa.
+
+Stessa coda locale del Service (`pending_service_actions`, `orderNo` = commessa,
+`itemLineNo` = 0). Le azioni non ancora inviate si vedono in fondo a "Ore su
+progetti", con l'eventuale errore.
+
 ### Service (interventi): `GET /serviceAssignments` e azioni
 
 Sezione Service, su ordini di assistenza standard di BC (vedi

@@ -166,12 +166,16 @@ class BcApiService {
       ServiceActionKind.hours => 'serviceHours',
       ServiceActionKind.material => 'serviceMaterials',
       ServiceActionKind.attachment => 'serviceAttachments',
+      ServiceActionKind.projectReport => 'projectReports',
+      ServiceActionKind.projectMaterial => 'projectReportMaterials',
+      ServiceActionKind.projectAttachment => 'projectAttachments',
     };
     // BC rifiuta i campi che non conosce: via quelli solo per l'app ("_…") e
     // itemLineNo per gli allegati (sono dell'ordine, non della riga).
     final body = <String, dynamic>{...action.payload}..removeWhere((key, _) => key.startsWith('_'));
     if (action.kind == ServiceActionKind.attachment) body.remove('itemLineNo');
-    if (action.kind == ServiceActionKind.attachment && action.filePath != null) {
+    final isFile = action.kind == ServiceActionKind.attachment || action.kind == ServiceActionKind.projectAttachment;
+    if (isFile && action.filePath != null) {
       body['fileBase64'] = base64Encode(await LocalFiles.readBytes(action.filePath!));
     }
     final response = await http.post(

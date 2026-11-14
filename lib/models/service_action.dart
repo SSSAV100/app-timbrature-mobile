@@ -9,6 +9,11 @@ enum ServiceActionKind {
   hours, // POST /serviceHours
   material, // POST /serviceMaterials
   attachment, // POST /serviceAttachments (file letto da filePath)
+  // Bollettino facoltativo delle ore di progetto: stessa coda, con
+  // orderNo = commessa e itemLineNo = 0 (solo per l'ordine di invio).
+  projectReport, // POST /projectReports
+  projectMaterial, // POST /projectReportMaterials
+  projectAttachment, // POST /projectAttachments (file letto da filePath)
 }
 
 /// Un'azione del tecnico su un intervento, salvata prima in locale e inviata
@@ -63,7 +68,10 @@ class ServiceAction {
           'Ore${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
         ServiceActionKind.material =>
           'Materiale: ${payload['quantity']} × ${payload['itemNo']} ${payload['_itemDescription'] ?? ''}'.trim(),
-        ServiceActionKind.attachment => 'Allegato: ${payload['fileName']}',
+        ServiceActionKind.attachment || ServiceActionKind.projectAttachment => 'Allegato: ${payload['fileName']}',
+        ServiceActionKind.projectReport => 'Bollettino ${payload['date']}',
+        ServiceActionKind.projectMaterial =>
+          'Materiale: ${payload['quantity']} × ${payload['itemNo']} ${payload['_itemDescription'] ?? ''}'.trim(),
       };
 
   // " 07:00–12:00" dagli orari "HH:mm:ss" del payload, se presenti.

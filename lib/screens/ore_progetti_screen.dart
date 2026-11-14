@@ -6,13 +6,16 @@ import '../core/theme.dart';
 import '../core/work_time.dart';
 import '../models/project.dart';
 import '../models/project_task.dart';
+import '../models/service_action.dart';
 import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/location_service.dart';
 import '../services/sync_service.dart';
+import '../widgets/sync_status_dot.dart';
 import '../widgets/time_entry_tile.dart';
+import 'project_report_screen.dart';
 
 class OreProgettiScreen extends StatefulWidget {
   const OreProgettiScreen({super.key});
@@ -25,6 +28,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   DateTime _selectedDate = DateTime.now();
   List<Project> _projects = [];
   List<TimeEntry> _entries = [];
+  List<ServiceAction> _pendingReports = [];
   bool _isLoading = true;
   String? _loadError;
 
@@ -46,11 +50,19 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
       final results = await Future.wait([
         BcApiService.instance.fetchAssignedProjects(),
         LocalDbService.instance.getTimeEntriesForDate(_selectedDate),
+        // Bollettini (e loro allegati) non ancora arrivati in BC.
+        LocalDbService.instance.getPendingServiceActions().then((actions) => actions
+            .where((a) =>
+                a.kind == ServiceActionKind.projectReport ||
+                a.kind == ServiceActionKind.projectMaterial ||
+                a.kind == ServiceActionKind.projectAttachment)
+            .toList()),
       ]);
 
       setState(() {
         _projects = results[0] as List<Project>;
         _entries = results[1] as List<TimeEntry>;
+        _pendingReports = results[2] as List<ServiceAction>;
       });
     } catch (_) {
       setState(() {
@@ -113,6 +125,16 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
     SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
   }
 
+  Future<void> _openProjectReport() async {
+    final sent = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => ProjectReportScreen(projects: _projects, date: _selectedDate, entries: _entries),
+    ));
+    if (sent == true) {
+      await _loadEverything();
+      SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
+    }
+  }
+
   Future<void> _deleteEntry(TimeEntry entry) async {
     await LocalDbService.instance.deleteTimeEntry(entry.localId);
     await _loadEverything();
@@ -126,7 +148,17 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
         : DateFormat('EEEE d MMMM', 'it_IT').format(_selectedDate);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ore su progetti')),
+      appBar: AppBar(
+        title: const Text('Ore su progetti'),
+        actions: [
+          // Bollettino facoltativo della commessa per il giorno mostrato.
+          TextButton.icon(
+            onPressed: _projects.isEmpty ? null : _openProjectReport,
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Bollettino'),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _loadEverything,
         child: ListView(
@@ -185,6 +217,35 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
                   onDelete: () => _deleteEntry(entry),
                 ),
               ),
+            if (_pendingReports.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text('Bollettini in invio', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              const SizedBox(height: 6),
+              for (final a in _pendingReports)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SyncStatusDot(status: a.status),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${a.orderNo} · ${a.summary}', style: const TextStyle(fontSize: 12)),
+                            if (a.status == SyncStatus.failed && a.errorMessage != null)
+                              Text(a.errorMessage!,
+                                  style: const TextStyle(fontSize: 11, color: AppColors.danger),
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),
