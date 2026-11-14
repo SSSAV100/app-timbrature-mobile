@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:developer' as developer;
+import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -8,10 +8,10 @@ import 'package:intl/intl.dart';
 
 import '../core/config.dart';
 import '../core/theme.dart';
-import '../services/local_db_service.dart';
-import '../models/service_assignment.dart';
 import '../models/app_user.dart';
+import '../models/service_assignment.dart';
 import '../services/bc_api_service.dart';
+import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
 import 'approvals_screen.dart';
