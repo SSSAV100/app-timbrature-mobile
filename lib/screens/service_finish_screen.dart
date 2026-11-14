@@ -228,6 +228,24 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
   void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Widget _buildHoursSection() {
+    // Ore già inserite con il pulsante "Ore": niente interruttore né campi,
+    // per non far registrare le stesse ore due volte.
+    if (_alreadyEnteredHours > 0) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          'Ore già inserite: ${_format(_alreadyEnteredHours)} h Service. '
+          'Per aggiungerne usa il pulsante Ore prima di terminare.',
+          style: const TextStyle(fontSize: 13),
+        ),
+      );
+    }
     final timeFormat = DateFormat('HH:mm');
     final hint = _startedAt == null
         ? 'Intervento senza ora di inizio: inserisci le ore.'
