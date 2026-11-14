@@ -342,6 +342,11 @@ class _HoursSheet extends StatefulWidget {
 }
 
 class _HoursSheetState extends State<_HoursSheet> {
+  // Errori mostrati dentro il pannello: uno SnackBar finirebbe dietro il
+  // bottom sheet, invisibile.
+  String? _error;
+  void _showError(String message) => setState(() => _error = message);
+
   final _serviceController = TextEditingController();
   TimeOfDay? _start;
   TimeOfDay? _end;
@@ -387,15 +392,15 @@ class _HoursSheetState extends State<_HoursSheet> {
     // Ore stipendio = tempo lavorato Dalle-Alle (commissione paritetica).
     final salary = WorkTime.hoursBetween(_start, _end);
     if (salary == null) {
-      _snack('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
+      _showError('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
       return;
     }
     if (_workType == null) {
-      _snack('Scegli il tipo lavoro.');
+      _showError('Scegli il tipo lavoro.');
       return;
     }
     if (service == null || service < 0) {
-      _snack('Le ore Service devono essere un numero (0 se non si fatturano).');
+      _showError('Le ore Service devono essere un numero (0 se non si fatturano).');
       return;
     }
     Navigator.of(context).pop(<String, dynamic>{
@@ -409,7 +414,6 @@ class _HoursSheetState extends State<_HoursSheet> {
     });
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -482,6 +486,11 @@ class _HoursSheetState extends State<_HoursSheet> {
               decoration: const InputDecoration(labelText: 'Nota (opzionale)'),
             ),
             const SizedBox(height: 20),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_error!, style: const TextStyle(fontSize: 13, color: Colors.red)),
+              ),
             SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _save, child: const Text('Aggiungi'))),
           ],
         ),
@@ -499,6 +508,11 @@ class _MaterialSheet extends StatefulWidget {
 }
 
 class _MaterialSheetState extends State<_MaterialSheet> {
+  // Errori mostrati dentro il pannello: uno SnackBar finirebbe dietro il
+  // bottom sheet, invisibile.
+  String? _error;
+  void _showError(String message) => setState(() => _error = message);
+
   final _quantityController = TextEditingController(text: '1');
   List<MaterialItem> _items = [];
   MaterialItem? _item;
@@ -523,11 +537,11 @@ class _MaterialSheetState extends State<_MaterialSheet> {
   void _save() {
     final quantity = double.tryParse(_quantityController.text.replaceAll(',', '.'));
     if (_item == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Scegli l\'articolo.')));
+      _showError('Scegli l\'articolo.');
       return;
     }
     if (quantity == null || quantity <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inserisci una quantità valida.')));
+      _showError('Inserisci una quantità valida.');
       return;
     }
     Navigator.of(context).pop(<String, dynamic>{
@@ -576,6 +590,11 @@ class _MaterialSheetState extends State<_MaterialSheet> {
             decoration: InputDecoration(labelText: 'Quantità${_item != null ? ' (${_item!.unitOfMeasure})' : ''}'),
           ),
           const SizedBox(height: 20),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(_error!, style: const TextStyle(fontSize: 13, color: Colors.red)),
+            ),
           SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _save, child: const Text('Aggiungi'))),
         ],
       ),

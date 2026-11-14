@@ -187,6 +187,11 @@ class _AddNotaSpesaSheet extends StatefulWidget {
 }
 
 class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
+  // Errori mostrati dentro il pannello: uno SnackBar finirebbe dietro il
+  // bottom sheet, invisibile.
+  String? _error;
+  void _showError(String message) => setState(() => _error = message);
+
   final _uuid = const Uuid();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -253,27 +258,19 @@ class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
   void _save() {
     final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inserisci un importo valido.')),
-      );
+      _showError('Inserisci un importo valido.');
       return;
     }
     // Con la commessa serve anche l'attività: SwissSalary rifiuta la riga
     // spese con commessa senza "Job Task No.".
     if (_selectedProject != null && _selectedTask == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_selectedProject!.tasks.isEmpty
+      _showError(_selectedProject!.tasks.isEmpty
               ? 'Questo progetto non ha attività: scegli "Nessun progetto" o contatta l\'ufficio.'
-              : 'Seleziona l\'attività del progetto.'),
-        ),
-      );
+              : 'Seleziona l\'attività del progetto.');
       return;
     }
     if (_receiptPath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Allega la foto della ricevuta.')),
-      );
+      _showError('Allega la foto della ricevuta.');
       return;
     }
 
@@ -409,6 +406,11 @@ class _AddNotaSpesaSheetState extends State<_AddNotaSpesaSheet> {
               ),
             ),
             const SizedBox(height: 20),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_error!, style: const TextStyle(fontSize: 13, color: Colors.red)),
+              ),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

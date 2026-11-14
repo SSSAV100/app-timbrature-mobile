@@ -245,6 +245,11 @@ class _AddTimeEntrySheet extends StatefulWidget {
 }
 
 class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
+  // Errori mostrati dentro il pannello: uno SnackBar finirebbe dietro il
+  // bottom sheet, invisibile.
+  String? _error;
+  void _showError(String message) => setState(() => _error = message);
+
   final _uuid = const Uuid();
   final _hoursBillableController = TextEditingController();
   TimeOfDay? _start;
@@ -280,31 +285,23 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
     // L'attività è obbligatoria: la registrazione sul registro commesse di
     // BC richiede il "Job Task No.".
     if (_selectedTask == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text((_selectedProject?.tasks ?? const []).isEmpty
+      _showError((_selectedProject?.tasks ?? const []).isEmpty
               ? 'Questo progetto non ha attività su cui registrare ore: contatta l\'ufficio.'
-              : 'Seleziona l\'attività del progetto.'),
-        ),
-      );
+              : 'Seleziona l\'attività del progetto.');
       return;
     }
 
     // Orari Dalle-Alle (commissione paritetica): le ore si ricavano da qui.
     final hoursWorked = WorkTime.hoursBetween(_start, _end);
     if (_selectedProject == null || hoursWorked == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).')),
-      );
+      _showError('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
       return;
     }
     for (final other in widget.existingEntries) {
       final oStart = WorkTime.parse(other.startTime);
       final oEnd = WorkTime.parse(other.endTime);
       if (oStart != null && oEnd != null && WorkTime.overlaps(_start!, _end!, oStart, oEnd)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Si sovrappone alla riga ${WorkTime.format(oStart)}-${WorkTime.format(oEnd)}.')),
-        );
+        _showError('Si sovrappone alla riga ${WorkTime.format(oStart)}-${WorkTime.format(oEnd)}.');
         return;
       }
     }
@@ -313,9 +310,7 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
     if (_isService) {
       hoursBillable = double.tryParse(_hoursBillableController.text.replaceAll(',', '.'));
       if (hoursBillable == null || hoursBillable <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Inserisci un numero di ore progetto/fattura valido.')),
-        );
+        _showError('Inserisci un numero di ore progetto/fattura valido.');
         return;
       }
     }
@@ -409,6 +404,11 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
               maxLines: 2,
             ),
             const SizedBox(height: 20),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_error!, style: const TextStyle(fontSize: 13, color: Colors.red)),
+              ),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
