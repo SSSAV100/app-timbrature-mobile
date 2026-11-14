@@ -113,6 +113,14 @@
 - Lato stipendio: riga nel giornale SwissSalary `APPTIMBR`, tipo salario
   da "Setup App Timbrature" (8980 per le ore lavorate).
 
+### 3.2c Bollettino delle ore di progetto (facoltativo)
+
+- **Uno per singola voce ore** (decisione del cliente, 14.11.2026): firma di chi
+  c'era in quel momento, ogni bollettino legato a commessa, attività e Dalle-Alle.
+- Idea rimandata: opzione "includi le altre voci di oggi sulla stessa commessa",
+  per firmare una volta sola mattina e pomeriggio dallo stesso cliente. Da
+  valutare se le due firme danno fastidio.
+
 ### 3.3 Trasferta (calcolo distanza)
 
 > **14.11.2026: timbrature tolte dall'app su richiesta del cliente** (niente
