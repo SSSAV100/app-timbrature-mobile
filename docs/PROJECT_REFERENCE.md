@@ -319,8 +319,11 @@ Flutter, sezione 4.
   SwissSalary), materiale, Termina con firma/foto/PDF allegati all'ordine e
   descrizione del lavoro. Trasferta della zona: se BC la rifiuta (es. conto
   C/G del costo di servizio senza "Cat. reg. art./serv.") la chiusura va
-  avanti e resta un commento sull'ordine. Da verificare: trasferta con conto
-  a posto, "Da riprogrammare" nella Dispatch Board.
+  avanti e resta un commento sull'ordine (Ordine > Commenti, dalla 1.0.0.21).
+  14.11.2026: trasferta verificata (TRASF-Z1 30 CHF aggiunta alla chiusura,
+  dopo aver messo "Cat. reg. art./serv." sul conto C/G del costo). Ore
+  proposte in Termina e GPS su ore ed eventi verificati. Da verificare:
+  "Da riprogrammare" nella Dispatch Board.
 
 **Non ancora implementati:**
 - Appuntamenti Service (letti da BC, mostrati al tecnico)
