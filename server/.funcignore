@@ -1,0 +1,7 @@
+*.ts
+!dist/**
+src/
+test/
+tsconfig.json
+local.settings.json
+.vscode/
