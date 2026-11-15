@@ -227,62 +227,62 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               Text(_loadError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
             ],
-            const SizedBox(height: 20),
-            const Text('Funzioni', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            const Text('Cosa vuoi fare?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 12),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
+              // Le ombre colorate delle piastrelle escono dai bordi.
+              clipBehavior: Clip.none,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.5,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.2,
               children: [
                 ModuleTile(
-                  icon: Icons.work_outline,
-                  iconColor: AppColors.primary,
+                  icon: Icons.work_outline_rounded,
+                  colors: const [Color(0xFF2A93F2), Color(0xFF0B63BF)],
                   label: 'Ore progetti',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const OreProgettiScreen()),
-                  ),
+                  subtitle: 'Registra le ore di lavoro',
+                  onTap: () => _open(const OreProgettiScreen()),
                 ),
                 // Sezione Service: interventi assegnati dalla Dispatch Board,
-                // solo per chi ha il modulo (flag "Tecnico Service" in BC). Il
-                // vecchio Bollettino su commesse Job è stato sostituito.
+                // solo per chi ha il modulo (flag "Tecnico Service" in BC).
                 if (_currentUser?.hasServiceModule == true)
                   ModuleTile(
                     icon: Icons.build_outlined,
-                    iconColor: const Color(0xFF0F6E56),
+                    colors: const [Color(0xFF1CB59C), Color(0xFF0A7A68)],
                     label: 'Interventi',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ServiceListScreen()),
-                    ),
+                    subtitle: _servicesToday == null || _servicesToday == 0
+                        ? 'Assistenza clienti'
+                        : '$_servicesToday da fare oggi',
+                    onTap: () => _open(const ServiceListScreen()),
                   ),
                 ModuleTile(
                   icon: Icons.beach_access_outlined,
-                  iconColor: const Color(0xFF993C1D),
-                  label: 'Ferie/assenze',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const FerieAssenzeScreen()),
-                  ),
+                  colors: const [Color(0xFFF59A5B), Color(0xFFD65F24)],
+                  label: 'Ferie e assenze',
+                  subtitle: 'Ferie, malattia, infortunio',
+                  onTap: () => _open(const FerieAssenzeScreen()),
                 ),
                 ModuleTile(
                   icon: Icons.receipt_long_outlined,
-                  iconColor: const Color(0xFF534AB7),
+                  colors: const [Color(0xFF8C74FF), Color(0xFF5B41D9)],
                   label: 'Note spese',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const NoteSpeseScreen()),
-                  ),
+                  subtitle: 'Spese con ricevuta',
+                  onTap: () => _open(const NoteSpeseScreen()),
                 ),
                 if (_currentUser?.canApprove == true)
                   ModuleTile(
                     icon: Icons.fact_check_outlined,
-                    iconColor: const Color(0xFFB8860B),
+                    colors: const [Color(0xFFF4B740), Color(0xFFCF8A06)],
                     label: 'Approvazioni',
+                    subtitle: (_pendingApprovalsCount ?? 0) == 0
+                        ? 'Nessuna in attesa'
+                        : '${_pendingApprovalsCount!} in attesa',
                     badgeCount: _pendingApprovalsCount,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ApprovalsScreen()),
-                    ),
+                    onTap: () => _open(const ApprovalsScreen()),
                   ),
               ],
             ),
@@ -290,6 +290,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  /// Apre un modulo e, al ritorno, aggiorna riepilogo e approvazioni.
+  void _open(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)).then((_) {
+      _loadTodaySummary();
+      _loadCurrentUser();
+    });
   }
 
   Widget _buildHeader() {
