@@ -46,11 +46,18 @@ class LocalFiles {
     await file.writeAsString(content, flush: true);
   }
 
-  /// All'uscita: via le copie locali dei dati letti da BC.
+  /// Copia locale di nome e logo della società: resta anche dopo l'uscita,
+  /// perché la pagina di login la mostra (non sono dati del dipendente).
+  static const brandingCacheName = 'company_branding.json';
+
+  /// All'uscita: via le copie locali dei dati letti da BC, tranne il logo.
   static Future<void> clearCache() async {
     final dir = await getApplicationDocumentsDirectory();
     final cacheDir = Directory(p.join(dir.path, 'cache'));
-    if (await cacheDir.exists()) await cacheDir.delete(recursive: true);
+    if (!await cacheDir.exists()) return;
+    await for (final entity in cacheDir.list()) {
+      if (p.basename(entity.path) != brandingCacheName) await entity.delete(recursive: true);
+    }
   }
 
   static Future<File> _cacheFile(String name) async {

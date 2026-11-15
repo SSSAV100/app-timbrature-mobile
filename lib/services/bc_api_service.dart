@@ -125,7 +125,7 @@ class BcApiService {
   /// Nome e logo della società (Informazioni società in BC) per la home,
   /// con copia locale per l'offline. Logo null se non caricato in BC.
   Future<({String name, Uint8List? logo})> fetchCompanyBranding() async {
-    final rows = await _getWithCache('companyBranding', 'company_branding.json');
+    final rows = await _getWithCache('companyBranding', LocalFiles.brandingCacheName);
     if (rows.isEmpty) return (name: '', logo: null);
     final logoBase64 = rows.first['logoBase64'] as String? ?? '';
     return (
