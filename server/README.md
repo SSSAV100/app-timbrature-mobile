@@ -36,9 +36,30 @@ Key Vault), `CUSTOMERS` = mappa *codice azienda → tenant, ambiente, società B
 Da rifare con il suffisso `-prod` in una sottoscrizione adatta alla produzione: i crediti
 partner sono per uso interno, sviluppo e demo.
 
-## Onboarding di un cliente (bozza)
+## Onboarding di un cliente (verificato sulla Demo il 15.11.2026)
 
-1. Consenso amministratore del cliente all'app **App Timbrature Server**.
-2. In BC del cliente: scheda *Applicazioni Microsoft Entra* con l'appId e le autorizzazioni dell'app.
-3. Aggiungere il cliente a `CUSTOMERS`: codice azienda, tenant, ambiente, società.
-4. Licenze BC per gli operai: da chiarire con SwissSalary o con Microsoft (multiplexing).
+1. **Consenso** dell'amministratore del cliente all'app **App Timbrature Server** (multi-tenant).
+2. In BC del cliente, **Applicazioni Microsoft Entra** → Nuovo:
+   - ID client = appId del server; ID app = ID dell'estensione
+     (`a24fe510-9d63-4690-a2f6-2a843dbe707d`); stato **Abilitato**;
+   - insiemi di autorizzazioni: **SS APP TIMBR**, **D365 BUS FULL ACCESS** e l'insieme
+     **SwissSalary** completo, per la società dell'app.
+3. **Setup utenti SwissSalary** (pagina 3009126): aggiungere l'utente dell'app Entra con il
+   filtro gruppo di allocazione che vede tutti i dipendenti. Senza questo, SwissSalary
+   nasconde tutti i dipendenti al server: `appLogins` e `me` restituiscono 0 righe.
+4. **Setup App Timbrature** → *ID app server di login* = appId del server (per società!).
+5. Aggiungere il cliente a `CUSTOMERS` nella Function: codice azienda, tenant, ambiente, società.
+6. Su ogni operaio: **Nome utente app** + **Imposta password app**.
+7. Licenze BC per gli operai: da chiarire con SwissSalary o con Microsoft (multiplexing).
+
+## Verifica rapida
+
+```bash
+curl -X POST https://func-apptimbrature-dev.azurewebsites.net/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"company":"DEMO","username":"<utente>","password":"<password>"}'
+# 200 {token, expiresAt, employeeId}; 401 credenziali errate; 502 problema verso BC
+```
+
+In sviluppo `EXPOSE_ERRORS=1` aggiunge al 502 il dettaglio dell'errore di BC: in produzione
+va tolto.

@@ -46,8 +46,16 @@ export async function login(request: HttpRequest, context: InvocationContext): P
       method: 'GET',
     });
     if (!response.ok) {
-      context.error(`appLogins ${response.status}: ${await response.text()}`);
-      return { status: 502, jsonBody: { error: 'Business Central non raggiungibile, riprovare più tardi.' } };
+      const detail = await response.text();
+      context.error(`appLogins ${response.status}: ${detail}`);
+      return {
+        status: 502,
+        jsonBody: {
+          error: 'Business Central non raggiungibile, riprovare più tardi.',
+          // Solo in sviluppo (EXPOSE_ERRORS=1): dettaglio di BC per la diagnosi.
+          ...(process.env.EXPOSE_ERRORS === '1' ? { detail: detail.slice(0, 500) } : {}),
+        },
+      };
     }
     const rows = ((await response.json()) as { value: AppLogin[] }).value ?? [];
     const user = rows[0];
