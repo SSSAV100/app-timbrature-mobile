@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: Text(
-                  'Salary Solution',
+                  'SolTime · Salary Solution',
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.7)),
                 ),
               ),
@@ -174,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             child: _logo != null
                 ? Image.memory(_logo!, fit: BoxFit.contain)
-                : Icon(Icons.schedule_rounded, color: AppColors.primary, size: 48),
+                : Image.asset('assets/branding/mark.png', fit: BoxFit.contain),
           ),
           const SizedBox(height: 18),
           Text(

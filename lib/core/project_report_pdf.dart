@@ -9,7 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../models/project.dart';
 import '../models/time_entry.dart';
-import 'config.dart';
+import 'local_files.dart';
 
 /// Bollettino facoltativo delle ore di progetto, firmato dal cliente:
 /// condiviso subito e allegato alla commessa in BC (projectAttachments).
@@ -25,6 +25,7 @@ class ProjectReportPdf {
     required String clientName,
     required Uint8List signaturePng,
   }) async {
+    final companyName = await LocalFiles.companyName();
     final doc = pw.Document();
     String taskName(String? id) =>
         project.tasks.where((t) => t.id == id).map((t) => t.description).firstOrNull ?? (id ?? '');
@@ -37,7 +38,7 @@ class ProjectReportPdf {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(AppConfig.instance.companyName,
+            pw.Text(companyName,
                 style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
             pw.Text('Bollettino di lavoro', style: const pw.TextStyle(fontSize: 14)),

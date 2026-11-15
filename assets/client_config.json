@@ -1,7 +1,7 @@
 {
-  "appDisplayName": "Timbrature",
-  "companyName": "Sandbox Interna SA",
-  "primaryColorHex": "#185FA5",
+  "appDisplayName": "SolTime",
+  "companyName": "SolTime",
+  "primaryColorHex": "#1080E8",
   "azureTenantId": "1441bb2f-4b09-496e-ab65-29a7d321f41e",
   "azureClientId": "866f42f3-3ead-490a-a931-2b9947523bfd",
   "redirectUri": "msauth.com.salarysolution.appTimbrature://auth/",

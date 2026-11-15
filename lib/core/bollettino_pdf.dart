@@ -8,7 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../models/bollettino.dart';
 import '../models/project.dart';
-import 'config.dart';
+import 'local_files.dart';
 
 /// Genera il PDF del bollettino di intervento firmato, da condividere
 /// immediatamente con il cliente (vedi specifica funzionale, sezione 7.2).
@@ -22,6 +22,7 @@ class BollettinoPdfGenerator {
     required Bollettino bollettino,
     required Project project,
   }) async {
+    final companyName = await LocalFiles.companyName();
     final doc = pw.Document();
     final dateFormat = DateFormat('dd.MM.yyyy');
     final timeFormat = DateFormat('HH:mm');
@@ -38,7 +39,7 @@ class BollettinoPdfGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                AppConfig.instance.companyName,
+                companyName,
                 style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
               ),
               pw.SizedBox(height: 4),

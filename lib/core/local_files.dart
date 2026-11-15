@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import 'config.dart';
 
 /// Salva dei byte (es. una firma catturata su schermo, o una foto scelta
 /// dalla galleria) in una cartella permanente dell'app, così da non
@@ -49,6 +52,20 @@ class LocalFiles {
   /// Copia locale di nome e logo della società: resta anche dopo l'uscita,
   /// perché la pagina di login la mostra (non sono dati del dipendente).
   static const brandingCacheName = 'company_branding.json';
+
+  /// Nome della società da BC (copia locale di companyBranding), per
+  /// intestare i PDF; se manca, il nome dell'app.
+  static Future<String> companyName() async {
+    try {
+      final cached = await readCache(brandingCacheName);
+      if (cached != null) {
+        final rows = jsonDecode(cached) as List;
+        final name = rows.isEmpty ? '' : (rows.first as Map)['name'] as String? ?? '';
+        if (name.isNotEmpty) return name;
+      }
+    } catch (_) {}
+    return AppConfig.instance.companyName;
+  }
 
   /// All'uscita: via le copie locali dei dati letti da BC, tranne il logo.
   static Future<void> clearCache() async {

@@ -4,7 +4,7 @@ description: >
   integrata direttamente con Microsoft Dynamics 365 Business Central
   (nessun middleware esterno).
 publish_to: 'none'
-version: 0.6.1+19
+version: 0.7.0+20
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -71,3 +71,4 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/branding/icon.png"
+  remove_alpha_ios: true

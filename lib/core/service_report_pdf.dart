@@ -9,7 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
-import 'config.dart';
+import 'local_files.dart';
 
 /// Rapporto di intervento Service firmato dal cliente: condiviso subito col
 /// cliente e allegato all'ordine di assistenza in BC (serviceAttachments).
@@ -24,6 +24,7 @@ class ServiceReportPdf {
     required String clientName,
     required Uint8List signaturePng,
   }) async {
+    final companyName = await LocalFiles.companyName();
     final doc = pw.Document();
     final dateFormat = DateFormat('dd.MM.yyyy');
     final hours = actions.where((a) => a.kind == ServiceActionKind.hours).toList();
@@ -36,7 +37,7 @@ class ServiceReportPdf {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(AppConfig.instance.companyName,
+            pw.Text(companyName,
                 style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
             pw.Text('Rapporto di intervento ${assignment.orderNo}', style: const pw.TextStyle(fontSize: 14)),
