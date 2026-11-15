@@ -49,7 +49,7 @@ partner sono per uso interno, sviluppo e demo.
    nasconde tutti i dipendenti al server: `appLogins` e `me` restituiscono 0 righe.
 4. **Setup App Timbrature** → *ID app server di login* = appId del server (per società!).
 5. Aggiungere il cliente a `CUSTOMERS` nella Function: codice azienda, tenant, ambiente, società.
-6. Su ogni operaio: **Nome utente app** + **Imposta password app**. Serve anche la **Risorsa** sulla scheda: senza, le ore restano in "Errore Registrazione" ("Risorsa must have a value") e il Service non mostra interventi.
+6. Su ogni operaio: **Nome utente app** + **Imposta password app**. Serve anche la **Risorsa**: di norma quella della scheda dipendente BC, collegata da SwissSalary ("Resource Connection" in Setup Payroll); in alternativa il campo "Risorsa (ripiego)" della sezione App Timbrature. Senza risorsa le ore restano in "Errore Registrazione" e il Service non mostra interventi.
 7. Licenze BC per gli operai: da chiarire con SwissSalary o con Microsoft (multiplexing).
 
 ## Verifica rapida
