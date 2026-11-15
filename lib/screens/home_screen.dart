@@ -7,15 +7,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/config.dart';
+import '../core/local_files.dart';
 import '../core/theme.dart';
 import '../models/app_user.dart';
 import '../models/service_assignment.dart';
+import '../services/auth_service.dart';
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/module_tile.dart';
 import 'approvals_screen.dart';
 import 'ferie_assenze_screen.dart';
+import 'login_screen.dart';
 import 'note_spese_screen.dart';
 import 'ore_progetti_screen.dart';
 import 'service_list_screen.dart';
@@ -76,6 +79,47 @@ class _HomeScreenState extends State<HomeScreen> {
   /// richiesta fallisce (es. offline al primo avvio), la piastrella
   /// Approvazioni resta semplicemente nascosta: non è un errore bloccante,
   /// e i ruoli vengono ricontrollati ad ogni apertura dell'app.
+  Future<void> _signOut() async {
+    await SyncService.instance.syncAll();
+    final unsent = await LocalDbService.instance.countUnsent();
+    if (!mounted) return;
+    if (unsent > 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Dati non ancora inviati'),
+          content: Text(
+            'Sul telefono ci sono $unsent registrazioni non ancora arrivate in Business Central. '
+            'Collegati alla rete e attendi l\'invio (o correggi quelle in errore) prima di uscire, '
+            'altrimenti andrebbero perse.',
+          ),
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+        ),
+      );
+      return;
+    }
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Uscire?'),
+        content: const Text('Per rientrare servirà di nuovo il login.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annulla')),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Esci')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await AuthService.instance.signOut();
+    await LocalDbService.instance.clearAll();
+    await LocalFiles.clearCache();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
   Future<void> _loadCurrentUser() async {
     try {
       final user = await BcApiService.instance.fetchCurrentUser();
@@ -158,7 +202,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('')),
+      appBar: AppBar(
+        title: const Text(''),
+        actions: [
+          IconButton(icon: const Icon(Icons.logout), tooltip: 'Esci', onPressed: _signOut),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([_loadProjects(), _loadCurrentUser(), _loadBranding()]);

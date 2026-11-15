@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 
 import '../core/config.dart';
 
@@ -23,6 +25,70 @@ class AuthService {
   static const _keyAccessToken = 'bc_access_token';
   static const _keyRefreshToken = 'bc_refresh_token';
   static const _keyExpiry = 'bc_token_expiry';
+
+  // Login con codice azienda, nome utente e password (operai senza account
+  // Microsoft): pass del server di login di Salary Solution (vedi server/).
+  static const _keyMode = 'auth_mode'; // 'microsoft' | 'password'
+  static const _keyAppToken = 'app_token';
+  static const _keyAppTokenExpiry = 'app_token_expiry';
+  static const _keyCompanyCode = 'app_company_code';
+  static const _keyUsername = 'app_username';
+
+  bool _passwordMode = false;
+
+  /// True se l'utente è entrato con nome utente e password: le chiamate
+  /// passano dal server di login invece che direttamente da BC.
+  bool get isPasswordMode => _passwordMode;
+
+  /// Base delle API: BC direttamente (login Microsoft) o il server di login.
+  String get apiBaseUrl => _passwordMode
+      ? '${AppConfig.instance.loginServerUrl}/bc'
+      : AppConfig.instance.customApiBaseUrl;
+
+  /// Da chiamare all'avvio, prima di usare [apiBaseUrl].
+  Future<void> init() async {
+    _passwordMode = await _secureStorage.read(key: _keyMode) == 'password';
+  }
+
+  /// Ultimi codice azienda e nome utente usati, per proporli nel login.
+  Future<({String company, String username})> lastPasswordLogin() async => (
+        company: await _secureStorage.read(key: _keyCompanyCode) ?? AppConfig.instance.defaultCompanyCode,
+        username: await _secureStorage.read(key: _keyUsername) ?? '',
+      );
+
+  /// Login con codice azienda, nome utente e password tramite il server di
+  /// login. Ritorna true se riuscito; altrimenti [lastErrorMessage] spiega.
+  Future<bool> signInWithPassword(String company, String username, String password) async {
+    lastErrorMessage = null;
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.instance.loginServerUrl}/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'company': company, 'username': username, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 30));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 200) {
+        lastErrorMessage = body['error'] as String? ?? 'Accesso non riuscito (${response.statusCode}).';
+        return false;
+      }
+      final expiry = DateTime.fromMillisecondsSinceEpoch((body['expiresAt'] as num).toInt() * 1000);
+      await _secureStorage.write(key: _keyAppToken, value: body['token'] as String);
+      await _secureStorage.write(key: _keyAppTokenExpiry, value: expiry.toIso8601String());
+      await _secureStorage.write(key: _keyCompanyCode, value: company.trim());
+      await _secureStorage.write(key: _keyUsername, value: username.trim());
+      await _secureStorage.write(key: _keyMode, value: 'password');
+      _passwordMode = true;
+      return true;
+    } on TimeoutException {
+      lastErrorMessage = 'Il server non risponde: controlla la connessione e riprova.';
+      return false;
+    } catch (e) {
+      lastErrorMessage = 'Accesso non riuscito: $e';
+      return false;
+    }
+  }
 
   /// Messaggio dell'ultimo errore di login, per diagnosticare i fallimenti
   /// (mostrato da LoginScreen). Non tradotto/ripulito: è un dettaglio
@@ -79,6 +145,8 @@ class AuthService {
         refreshToken: result.refreshToken,
         accessTokenExpirationDateTime: result.accessTokenExpirationDateTime,
       );
+      await _secureStorage.write(key: _keyMode, value: 'microsoft');
+      _passwordMode = false;
       return true;
     } catch (e) {
       lastErrorMessage = e.toString();
@@ -90,6 +158,13 @@ class AuthService {
   /// tramite il refresh token se necessario. Ritorna null se serve un
   /// nuovo login interattivo (es. refresh token scaduto/revocato).
   Future<String?> getValidAccessToken() async {
+    if (_passwordMode) {
+      // Pass del server: valido 30 giorni, poi si rifà il login.
+      final token = await _secureStorage.read(key: _keyAppToken);
+      final expiry = DateTime.tryParse(await _secureStorage.read(key: _keyAppTokenExpiry) ?? '');
+      if (token == null || expiry == null || expiry.isBefore(DateTime.now())) return null;
+      return token;
+    }
     final expiryString = await _secureStorage.read(key: _keyExpiry);
     final accessToken = await _secureStorage.read(key: _keyAccessToken);
     final refreshToken = await _secureStorage.read(key: _keyRefreshToken);
@@ -132,14 +207,20 @@ class AuthService {
   }
 
   Future<bool> get isSignedIn async {
-    final token = await _secureStorage.read(key: _keyAccessToken);
+    final token = await _secureStorage.read(key: _passwordMode ? _keyAppToken : _keyAccessToken);
     return token != null;
   }
 
+  /// Esce da entrambi i tipi di login. Codice azienda e nome utente restano,
+  /// per proporli al prossimo accesso.
   Future<void> signOut() async {
     await _secureStorage.delete(key: _keyAccessToken);
     await _secureStorage.delete(key: _keyRefreshToken);
     await _secureStorage.delete(key: _keyExpiry);
+    await _secureStorage.delete(key: _keyAppToken);
+    await _secureStorage.delete(key: _keyAppTokenExpiry);
+    await _secureStorage.delete(key: _keyMode);
+    _passwordMode = false;
   }
 
   Future<void> _persistTokens({

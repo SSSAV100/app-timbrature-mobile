@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/config.dart';
 import 'core/theme.dart';
+import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,9 @@ Future<void> main() async {
   // italiano (es. "lunedì 17 settembre"); senza questa riga, DateFormat
   // con locale 'it_IT' lancia un'eccezione a runtime.
   await initializeDateFormatting('it_IT');
+
+  // Tipo di login (Microsoft o nome utente) prima di qualunque chiamata API.
+  await AuthService.instance.init();
 
   runApp(const TimbratureApp());
 }

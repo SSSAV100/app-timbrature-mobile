@@ -9,5 +9,7 @@
   "bcCompanyId": "9deb824e-1a8e-f011-b419-00224861978d",
   "customApiPublisher": "salarysolution",
   "customApiGroup": "timbrature",
-  "customApiVersion": "v1.0"
+  "customApiVersion": "v1.0",
+  "loginServerUrl": "https://func-apptimbrature-dev.azurewebsites.net/api",
+  "defaultCompanyCode": "DEMO"
 }

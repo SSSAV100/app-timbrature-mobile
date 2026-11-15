@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
-import '../core/config.dart';
 import '../core/local_files.dart';
 import '../models/app_user.dart';
 import '../models/approval_decision.dart';
@@ -82,7 +81,7 @@ class BcApiService {
 
   Future<List<Map<String, dynamic>>> _fetchProjectsWithTasks() async {
     final headers = await _authHeaders();
-    final base = AppConfig.instance.customApiBaseUrl;
+    final base = AuthService.instance.apiBaseUrl;
 
     final responses = await Future.wait([
       http.get(Uri.parse('$base/assignedProjects'), headers: headers),
@@ -141,7 +140,7 @@ class BcApiService {
   Future<List<Map<String, dynamic>>> _getWithCache(String entitySet, String cacheFile) async {
     try {
       final headers = await _authHeaders();
-      final response = await http.get(Uri.parse('${AppConfig.instance.customApiBaseUrl}/$entitySet'), headers: headers);
+      final response = await http.get(Uri.parse('${AuthService.instance.apiBaseUrl}/$entitySet'), headers: headers);
       _throwIfNotOk(response);
       final rows = _values(response);
       await LocalFiles.writeCache(cacheFile, jsonEncode(rows));
@@ -179,7 +178,7 @@ class BcApiService {
       body['fileBase64'] = base64Encode(await LocalFiles.readBytes(action.filePath!));
     }
     final response = await http.post(
-      Uri.parse('${AppConfig.instance.customApiBaseUrl}/$entitySet'),
+      Uri.parse('${AuthService.instance.apiBaseUrl}/$entitySet'),
       headers: headers,
       body: jsonEncode(body),
     );
@@ -197,7 +196,7 @@ class BcApiService {
   /// il chiamante (SyncService) decide se ritentare più tardi.
   Future<void> submitPunch(TimesheetPunch punch) async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/timePunches');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/timePunches');
 
     final response = await http.post(
       uri,
@@ -215,7 +214,7 @@ class BcApiService {
   /// con SwissSalary.
   Future<void> submitTimeEntry(TimeEntry entry) async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/timeEntries');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/timeEntries');
 
     final response = await http.post(
       uri,
@@ -234,7 +233,7 @@ class BcApiService {
   /// separato per gli allegati.
   Future<void> submitBollettino(Bollettino bollettino) async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/serviceReports');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/serviceReports');
 
     final clientSignatureBytes = await LocalFiles.readBytes(bollettino.clientSignaturePath);
     final technicianSignatureBytes = bollettino.technicianSignaturePath != null
@@ -271,7 +270,7 @@ class BcApiService {
   /// dell'utente corrente).
   Future<double> fetchVacationBalanceHours() async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/vacationBalances');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/vacationBalances');
 
     final response = await http.get(uri, headers: headers);
     _throwIfNotOk(response);
@@ -290,7 +289,7 @@ class BcApiService {
   /// la richiesta viene semplicemente raccolta e inviata.
   Future<void> submitAssenza(AssenzaRequest assenza) async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/absenceRequests');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/absenceRequests');
 
     String? attachmentBase64;
     String? attachmentFileName;
@@ -319,7 +318,7 @@ class BcApiService {
   /// POST {customApiBaseUrl}/expenseReports
   Future<void> submitNotaSpesa(NotaSpesa nota) async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/expenseReports');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/expenseReports');
 
     final receiptBase64 = base64Encode(await LocalFiles.readBytes(nota.receiptPath));
 
@@ -349,7 +348,7 @@ class BcApiService {
   /// letti da BC ad ogni avvio.
   Future<AppUser> fetchCurrentUser() async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/me');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/me');
 
     final response = await http.get(uri, headers: headers);
     _throwIfNotOk(response);
@@ -370,7 +369,7 @@ class BcApiService {
   /// più dannosa che utile, quindi non viene messa in coda offline.
   Future<List<ApprovalItem>> fetchPendingApprovals() async {
     final headers = await _authHeaders();
-    final uri = Uri.parse('${AppConfig.instance.customApiBaseUrl}/pendingApprovals');
+    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/pendingApprovals');
 
     final response = await http.get(uri, headers: headers);
     _throwIfNotOk(response);
@@ -399,7 +398,7 @@ class BcApiService {
     final headers = await _authHeaders();
     headers['If-Match'] = '*';
     final uri = Uri.parse(
-      '${AppConfig.instance.customApiBaseUrl}/approvalDecisions(${decision.approvalItemId})',
+      '${AuthService.instance.apiBaseUrl}/approvalDecisions(${decision.approvalItemId})',
     );
 
     final response = await http.patch(uri, headers: headers, body: jsonEncode(decision.toBcJson()));

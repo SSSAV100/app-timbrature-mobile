@@ -46,6 +46,13 @@ class LocalFiles {
     await file.writeAsString(content, flush: true);
   }
 
+  /// All'uscita: via le copie locali dei dati letti da BC.
+  static Future<void> clearCache() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final cacheDir = Directory(p.join(dir.path, 'cache'));
+    if (await cacheDir.exists()) await cacheDir.delete(recursive: true);
+  }
+
   static Future<File> _cacheFile(String name) async {
     final dir = await getApplicationDocumentsDirectory();
     final cacheDir = Directory(p.join(dir.path, 'cache'));

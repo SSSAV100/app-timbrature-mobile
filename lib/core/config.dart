@@ -21,6 +21,8 @@ class AppConfig {
     required this.customApiPublisher,
     required this.customApiGroup,
     required this.customApiVersion,
+    this.loginServerUrl = '',
+    this.defaultCompanyCode = '',
   });
 
   final String appDisplayName;
@@ -34,6 +36,15 @@ class AppConfig {
   final String customApiPublisher;
   final String customApiGroup;
   final String customApiVersion;
+
+  /// Server di login di Salary Solution per il login con codice azienda,
+  /// nome utente e password (operai senza account Microsoft). Vuoto =
+  /// solo login Microsoft.
+  final String loginServerUrl;
+
+  /// Codice azienda proposto nel login con nome utente (comodità per la
+  /// build di un singolo cliente).
+  final String defaultCompanyCode;
 
   static AppConfig? _instance;
 
@@ -70,6 +81,8 @@ class AppConfig {
       customApiPublisher: json['customApiPublisher'] as String,
       customApiGroup: json['customApiGroup'] as String,
       customApiVersion: json['customApiVersion'] as String,
+      loginServerUrl: json['loginServerUrl'] as String? ?? '',
+      defaultCompanyCode: json['defaultCompanyCode'] as String? ?? '',
     );
     _instance = config;
     return config;

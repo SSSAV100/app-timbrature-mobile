@@ -559,5 +559,38 @@ class LocalDbService {
   }
 
   String _dateOnly(DateTime d) => d.toIso8601String().substring(0, 10);
-}
 
+  static const _allTables = [
+    'pending_punches',
+    'pending_time_entries',
+    'pending_bollettini',
+    'pending_assenze',
+    'pending_service_actions',
+    'pending_note_spese',
+    'pending_approval_decisions',
+  ];
+
+  /// Dati salvati sul telefono e non ancora arrivati in BC (in attesa o in
+  /// errore): finché ce ne sono non si può uscire, altrimenti andrebbero persi.
+  Future<int> countUnsent() async {
+    final results = await Future.wait([
+      getPendingPunches(),
+      getPendingTimeEntries(),
+      getPendingBollettini(),
+      getPendingAssenze(),
+      getPendingServiceActions(),
+      getPendingNoteSpese(),
+      getPendingApprovalDecisions(),
+    ]);
+    return results.fold<int>(0, (sum, list) => sum + list.length);
+  }
+
+  /// All'uscita: lo storico locale è del dipendente che esce, non deve
+  /// vederlo chi entra dopo sullo stesso telefono.
+  Future<void> clearAll() async {
+    final db = await database;
+    for (final table in _allTables) {
+      await db.delete(table);
+    }
+  }
+}
