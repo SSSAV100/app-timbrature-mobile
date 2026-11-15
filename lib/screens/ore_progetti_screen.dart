@@ -325,7 +325,6 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
   void _showError(String message) => setState(() => _error = message);
 
   final _uuid = const Uuid();
-  final _hoursBillableController = TextEditingController();
   TimeOfDay? _start;
   TimeOfDay? _end;
   final _noteController = TextEditingController();
@@ -348,12 +347,9 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
 
   @override
   void dispose() {
-    _hoursBillableController.dispose();
     _noteController.dispose();
     super.dispose();
   }
-
-  bool get _isService => _selectedProject?.type == ProjectType.service;
 
   void _save() {
     // L'attività è obbligatoria: la registrazione sul registro commesse di
@@ -380,22 +376,12 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
       }
     }
 
-    double? hoursBillable;
-    if (_isService) {
-      hoursBillable = double.tryParse(_hoursBillableController.text.replaceAll(',', '.'));
-      if (hoursBillable == null || hoursBillable <= 0) {
-        _showError('Inserisci un numero di ore progetto/fattura valido.');
-        return;
-      }
-    }
-
     final entry = TimeEntry(
       localId: _uuid.v4(),
       projectId: _selectedProject!.id,
       taskId: _selectedTask?.id,
       date: widget.date,
       hoursWorked: hoursWorked,
-      hoursBillable: hoursBillable,
       startTime: WorkTime.format(_start!),
       endTime: WorkTime.format(_end!),
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
@@ -458,19 +444,6 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
               onStartChanged: (t) => setState(() => _start = t),
               onEndChanged: (t) => setState(() => _end = t),
             ),
-            if (_isService) ...[
-              // Commessa di tipo Service (vecchio flusso): le ore da fatturare
-              // possono differire da quelle lavorate (Dalle-Alle).
-              const SizedBox(height: 12),
-              TextField(
-                controller: _hoursBillableController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Ore progetto/fattura cliente',
-                  helperText: 'Ore da caricare sul progetto e da fatturare al cliente',
-                ),
-              ),
-            ],
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,

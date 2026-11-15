@@ -103,7 +103,6 @@ class _ApprovalTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd.MM.yyyy');
-    final isCantiere = item.type == ApprovalType.oreCantiereStraordinario;
 
     return InkWell(
       onTap: onTap,
@@ -119,7 +118,7 @@ class _ApprovalTile extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              isCantiere ? Icons.schedule_outlined : Icons.engineering_outlined,
+              Icons.schedule_outlined,
               size: 20,
               color: AppColors.primary,
             ),
@@ -133,9 +132,9 @@ class _ApprovalTile extends StatelessWidget {
                     '${item.projectDescription} · ${dateFormat.format(item.date)}',
                     style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
-                  Text(
-                    isCantiere ? 'Straordinario' : 'Ore Service (lato progetti)',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  const Text(
+                    'Straordinario',
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),

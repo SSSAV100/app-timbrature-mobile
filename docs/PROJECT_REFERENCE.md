@@ -42,30 +42,32 @@
 | Database locale (coda offline) | `sqflite` | Coda temporanea di ciò che va inviato; BC resta l'unica fonte di verità. Unica copia locale di dati BC: l'ultimo elenco commesse/attività (`cache/assigned_projects.json`), usato solo senza rete per poter timbrare e registrare ore offline |
 | Geolocalizzazione | `geolocator` | Dal 14.11.2026: un punto GPS al salvataggio di una riga ore (`timeEntries`) e su Inizia/Termina/Da riprogrammare (`serviceEvents`). Permesso "quando in uso", mai bloccante, nessun tracciamento continuo. Non più sulla timbratura, tolta |
 | Foto | `image_picker` | Fotocamera o galleria |
-| Firma su schermo | `signature` | Solo per il bollettino Service |
+| Firma su schermo | `signature` | Bollettini (Service e ore di progetto) |
 | PDF | `pdf` | Generato localmente per il bollettino, condiviso subito via `share_plus` |
 | Connettività | `connectivity_plus` | Trigger di sincronizzazione automatica al ritorno online |
 | Build/distribuzione | Codemagic (cloud, no Mac necessario per build ordinarie) | Un Mac fisico resta comunque utile per debug nativo profondo (vedi sezione 4) |
 
 ## 3. Regole di business
 
-### 3.1 Due tipi di progetto, comportamento diverso
+### 3.1 Cantieri e Service
 
-> **Service in sospeso (28.09.2026).** In BC la parte Service vive su
-> tabelle diverse da Job/Job Task, sia per i progetti sia per le
-> registrazioni ore. L'implementazione attuale (commesse Job con `Tipo
-> Commessa` = Service, `Project Manager` come approvatore, ore su Job
-> Journal) va rivista quando arrivano i dettagli esatti: per ora non
-> testarla e non estenderla.
+> **Una sola app, moduli per dipendente (decisione del 28.09.2026).**
+> `GET /me` restituisce i moduli (`progetti` sempre, `service` se è attivo
+> "Tecnico Service" sulla scheda dipendente). Alcuni dipendenti fanno
+> entrambi i lavori.
 >
-> **Decisione (28.09.2026): una sola app, moduli per dipendente.** Niente
-> app separate e niente selettore di modalità. Alcuni dipendenti fanno sia
-> cantiere sia Service: `GET /me` dirà quali moduli mostrare (cantiere,
-> service), la home mostra le piastrelle corrispondenti. Il Service avrà
-> schermate proprie (interventi assegnati → dettaglio con ore, materiali,
-> bollettino) e codice AL proprio sulle tabelle Service di BC; il codice
-> Service attuale basato su Job/Job Task va rimosso, non adattato. Parte
-> comune unica: timbrature, assenze, note spese, approvazioni.
+> - **Cantieri (progetti):** commesse Job e attività, il dipendente sceglie
+>   da solo commessa e attività; ore = ore fatturabili; straordinario
+>   approvato dal Capo Cantiere in app; bollettino facoltativo per singola
+>   voce ore.
+> - **Service:** ordini di assistenza standard di BC (Service Order
+>   Allocation, Repair Status, righe Risorsa/Articolo), API proprie
+>   (`serviceAssignments`, `serviceEvents`, `serviceHours`,
+>   `serviceMaterials`, `serviceAttachments`).
+>
+> Il vecchio Service basato su commesse Job (`Tipo Commessa` = Service,
+> approvazione `oreServiceProgetti`, `POST /serviceReports`) è stato
+> **rimosso** il 15.11.2026 (AL 1.0.0.29, app 0.7.1+21).
 >
 > Analisi del modulo Service di BC (tabelle, assegnazione tecnici, stati,
 > posting, allegati): `docs/SERVICE_BC_ANALYSIS.md`.
@@ -79,15 +81,6 @@
 > all'ufficio nella Dispatch Board. Da decidere: capacità dei tecnici in BC
 > (Res. Capacity), definizione delle zone vicine, limiti alla prenotazione
 > (giorni massimi o conferma dell'ufficio).
-
-| | Standard (Cantieri/Acquedotti) | Service |
-|---|---|---|
-| Appuntamenti | Nessuno: il dipendente sceglie da solo il progetto | Ricevuti da BC (**non ancora implementato in app**) |
-| Ore | Un solo valore (`hoursWorked` = `hoursBillable` sempre) | Due valori distinti: `hoursWorked` (stipendio) e `hoursBillable` (fatturato al cliente) — possono differire |
-| Bollettino | Non previsto (solo eventuale registro materiali, **non ancora implementato**) | Sì: firma cliente, materiali, foto, PDF, fatturazione diretta |
-| Approvazione ore | Automatica se il totale giornaliero = orario contrattuale; altrimenti **responsabile di cantiere**, in app | Due passaggi: **responsabile Progetti** (in app) poi **responsabile Salari** (nativo in BC, non in app) |
-| Cliente assente alla firma | N/A | Passa ad approvazione interna del **responsabile ufficio** (nativo in BC) |
-| Ripianificazione intervento | N/A | Tecnico segnala (nota + allegato), l'ufficio ripianifica **in BC**, non in app (**segnalazione non ancora implementata**) |
 
 ### 3.2 Ferie, assenze, note spese
 
@@ -140,10 +133,7 @@
 | Ruolo | Approva | Dove |
 |---|---|---|
 | `dipendente` | — (sempre presente) | — |
-| `responsabileCantiere` | Straordinario progetti Standard | **In app** (schermata Approvazioni) |
-| `responsabileProgetti` | Lato Progetti delle ore Service | **In app** (schermata Approvazioni) |
-| Responsabile Salari | Lato Salari delle ore Service | **Nativo in BC** (Approvals + app ufficiale Microsoft Business Central) — nessuna schermata custom |
-| Responsabile Ufficio | Bollettino senza firma cliente | **Nativo in BC** — nessuna schermata custom |
+| `responsabileCantiere` | Straordinario sulle commesse | **In app** (schermata Approvazioni) |
 
 I ruoli sono letti da BC (`GET /me`) ad ogni avvio, mai calcolati o
 salvati lato app.
@@ -151,17 +141,15 @@ salvati lato app.
 **Chi approva è definito sulla commessa, non sul dipendente** (ogni
 commessa può avere un responsabile diverso):
 
-- Standard, straordinario: campo `Capo Cantiere` (gruppo App Timbrature
-  della scheda commessa).
-- Service, lato Progetti: campo standard BC `Project Manager` /
-  Responsabile progetto (gruppo Generale della scheda commessa).
+- Straordinario: campo `Capo Cantiere` (gruppo App Timbrature della
+  scheda commessa).
 - Commessa senza responsabile: si usa l'`Approvatore Predefinito` della
   scheda dipendente; se manca anche quello, la riga resta senza
   approvatore ed è decidibile solo in BC (pagina "Approvazione Ore").
 - L'approvatore viene fissato sulla riga ore al momento dell'invio
   (campo `Approver User ID`): ognuno vede e decide solo le righe
   assegnate a lui.
-- I ruoli `responsabileCantiere` / `responsabileProgetti` si ricavano da
+- I ruoli (`responsabileCantiere`) si ricavano da
   lì: responsabile di almeno una commessa aperta del tipo corrispondente,
   oppure righe in sospeso assegnate. Non esistono più spunte di ruolo
   sulla scheda dipendente (tolte il 26.09.2026).
@@ -218,7 +206,7 @@ Ordinate per probabilità di essere la causa di un problema simile in futuro.
 8. **Nome e forma dei campi devono combaciare esattamente con la pagina
    AL**, comprese le sotto-pagine (deep insert). Esempio reale: l'app
    inviava `"photosBase64": ["<b64>", ...]` ma la pagina AL
-   (`SS.ServiceReportApi.Page.al`, sotto-pagina `photos`) si aspettava
+   (`SS.ServiceReportApi.Page.al`, sotto-pagina `photos`, poi rimossa) si aspettava
    `"photos": [{"photoBase64": "<b64>"}, ...]` — un array di oggetti, non
    di stringhe, con un nome di campo diverso. BC rifiuta i campi
    sconosciuti: verificare sempre la pagina AL reale, non assumere la
@@ -288,10 +276,9 @@ Base URL: `https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/
 | Metodo | Endpoint | Scopo |
 |---|---|---|
 | GET | `/me` | Utente corrente + ruoli (CSV) |
-| GET | `/assignedProjects` + `/assignedJobTasks` | Tutte le commesse aperte (visibili a tutti, nessun filtro per dipendente) con `projectType` (Standard/Service); le attività di tipo Registrazione arrivano dalla seconda chiamata e l'app le abbina per `projectId` |
+| GET | `/assignedProjects` + `/assignedJobTasks` | Tutte le commesse aperte (visibili a tutti, nessun filtro per dipendente); le attività di tipo Registrazione arrivano dalla seconda chiamata e l'app le abbina per `projectId` |
 | POST | `/timePunches` | Timbratura (entrata/uscita/pausa). **Non più usata dall'app dal 14.11.2026** (timbrature tolte); l'API resta in BC |
-| POST | `/timeEntries` | Riga ore: `hoursWorked` + `hoursBillable` (uguali per Standard, distinti per Service) |
-| POST | `/serviceReports` | Bollettino: materiali, `photos` (array di `{photoBase64}`), firme base64 |
+| POST | `/timeEntries` | Riga ore con `startTime`/`endTime`; `hoursBillable` = `hoursWorked` |
 | GET | `/vacationBalances` | Saldo ferie in ore |
 | POST | `/absenceRequests` | Ferie/malattia/infortunio, con allegato per gli ultimi due |
 | POST | `/expenseReports` | Nota spesa, CHF, ricevuta base64 |
@@ -306,10 +293,10 @@ Flutter, sezione 4.
 **Completati e testati (almeno in parte) end-to-end:**
 - Login (Azure AD, con tutte le insidie della sezione 4 risolte)
 - ~~Timbrature (con GPS)~~: tolte dall'app il 14.11.2026 su richiesta del cliente
-- Ore su progetti (con split ore stipendio/fattura per Service)
+- Ore su progetti (Dalle-Alle, mattino/pomeriggio)
 - Ferie, Assenze, Note spese
-- Ruoli e Approvazioni (schermata in app per responsabile Cantiere/Progetti)
-- Bollettino (in fase di test dopo il fix del campo `photos`)
+- Ruoli e Approvazioni (schermata in app per il Capo Cantiere)
+- Service sugli ordini di assistenza, bollettino facoltativo delle ore di progetto
 
 **Verificato end-to-end (26.09.2026):**
 - Ore su progetti Standard: dall'app alla commessa (movimento) e al giornale

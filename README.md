@@ -120,23 +120,17 @@ modulo "Ore su progetti").
     {
       "id": "CANT-001",
       "description": "Cantiere Via Stazione 12",
-      "projectType": "Standard",
       "tasks": [
         { "id": "T10", "description": "Scavo e fondazioni" },
         { "id": "T20", "description": "Getto solette" }
       ]
-    },
-    {
-      "id": "SERV-045",
-      "description": "Manutenzione impianto Cliente Rossi SA",
-      "projectType": "Service",
-      "tasks": []
     }
   ]
 }
 ```
 
-`projectType` è `"Standard"` o `"Service"` (vedi specifica, sezione 5).
+Il Service non passa dalle commesse: ha le sue API sugli ordini di assistenza
+(`serviceAssignments`, `serviceEvents`, `serviceHours`, …).
 Le attività non arrivano dentro `assignedProjects`: l'app le legge con una seconda
 chiamata `GET /assignedJobTasks` (campi `projectId`, `id`, `description`) e le abbina
 per `projectId` nel campo `tasks` del modello. Solo attività di tipo Registrazione. L'attività è
@@ -208,42 +202,6 @@ Payload inviato dall'app (esempio Service, con valori differenti):
 non valorizzati). Stessa logica di risposta e di coda offline di
 `/timePunches`.
 
-### `POST /serviceReports`
-
-Riceve un bollettino di intervento firmato (progetti Service, vedi
-specifica funzionale sezione 7). Foto e firme arrivano come stringhe
-base64 nel payload: la tua estensione AL dovrà decodificarle e allegarle
-al progetto Service in BC (o salvarle come preferisci, es. tramite la
-funzionalità standard di allegato documenti).
-
-Payload inviato dall'app:
-
-```json
-{
-  "projectId": "SERV-045",
-  "clientContactName": "Mario Bianchi",
-  "startTime": "2026-09-17T08:00:00.000Z",
-  "endTime": "2026-09-17T10:30:00.000Z",
-  "description": "Sostituzione pompa di circolazione",
-  "materials": [
-    { "description": "Pompa circolazione 25-60", "quantity": 1 }
-  ],
-  "photos": [
-    { "photoBase64": "<stringa base64 jpg>" },
-    { "photoBase64": "<stringa base64 jpg>" }
-  ],
-  "clientSignatureBase64": "<stringa base64 png>",
-  "technicianSignatureBase64": "<stringa base64 png, opzionale>"
-}
-```
-
-`materials` e `photos` possono essere array vuoti. Sono le parti (deep insert) `materials` e
-`photos` della pagina AL `SS Service Report API`: i nomi devono coincidere con quelli delle parti. L'app genera già
-in locale un PDF del bollettino (con firma inclusa) che condivide
-immediatamente sul dispositivo del tecnico (email, WhatsApp, ecc. tramite
-il pannello di condivisione nativo): la copia ufficiale/di sistema resta
-comunque quella salvata in Business Central tramite questa API.
-
 L'URL completo che l'app compone per queste chiamate è (vedi
 `lib/core/config.dart`):
 
@@ -251,7 +209,6 @@ L'URL completo che l'app compone per queste chiamate è (vedi
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/assignedProjects
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timePunches
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timeEntries
-https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/serviceReports
 ```
 
 ### `GET /vacationBalances`
@@ -388,18 +345,13 @@ ad ogni avvio.
 ```
 
 `roles` è un array che può contenere: `dipendente` (sempre presente),
-`responsabileCantiere` (approva lo straordinario dei progetti Standard),
-`responsabileProgetti` (approva il lato Progetti delle ore Service). Il
-lato Salari e l'approvazione "ufficio" per i bollettini senza firma
-cliente **non** passano da questa app: sono gestiti nativamente in
-Business Central (Approvals + app ufficiale Microsoft Business Central),
-per i ruoli d'ufficio che già lavorano dentro BC tutto il giorno.
+`responsabileCantiere` (approva lo straordinario sulle commesse di cui è
+Capo Cantiere, o come Approvatore Predefinito).
 
 ### `GET /pendingApprovals`
 
 Restituisce le richieste in attesa dell'approvazione dell'utente
-corrente: solo quelle delle commesse di cui è responsabile (Capo Cantiere
-per le Standard, Responsabile progetto per le Service) o di cui è
+corrente: solo quelle delle commesse di cui è Capo Cantiere o di cui è
 Approvatore Predefinito del dipendente. Vedi
 `docs/PROJECT_REFERENCE.md`, sezione 3.4. Letta sempre live (nessuna coda offline
 in lettura: una lista di approvazioni non aggiornata sarebbe più dannosa
@@ -421,11 +373,9 @@ che utile).
 }
 ```
 
-`type` può essere `oreCantiereStraordinario` (ore Standard/Cantieri che
-superano l'orario contrattuale giornaliero — Business Central approva
-automaticamente quelle pari all'orario contrattuale, instrada qui solo le
-eccedenze) oppure `oreServiceProgetti` (il lato Progetti delle ore
-Service; il lato Salari resta separato e nativo in BC, vedi sopra).
+`type` è sempre `oreCantiereStraordinario`: ore che superano l'orario
+contrattuale giornaliero. Business Central approva automaticamente quelle
+entro l'orario contrattuale e instrada qui solo le eccedenze.
 
 ### `POST /pendingApprovals/{id}/decision`
 
@@ -447,7 +397,6 @@ L'URL completo che l'app compone per queste chiamate è (vedi
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/assignedProjects
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timePunches
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/timeEntries
-https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/serviceReports
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/vacationBalances
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/absenceRequests
 https://api.businesscentral.dynamics.com/v2.0/<bcTenantId>/<bcEnvironment>/api/<customApiPublisher>/<customApiGroup>/<customApiVersion>/expenseReports

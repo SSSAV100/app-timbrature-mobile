@@ -26,7 +26,6 @@ class SyncService {
 
       await _syncPendingPunches();
       await _syncPendingTimeEntries();
-      await _syncPendingBollettini();
       await _syncPendingAssenze();
       await _syncPendingNoteSpese();
       await _syncPendingApprovalDecisions();
@@ -58,19 +57,6 @@ class SyncService {
       } catch (e) {
         await LocalDbService.instance.markTimeEntryFailed(entry.localId, e.toString());
         // Si prosegue con le altre righe in coda anche se una fallisce.
-      }
-    }
-  }
-
-  Future<void> _syncPendingBollettini() async {
-    final pending = await LocalDbService.instance.getPendingBollettini();
-    for (final bollettino in pending) {
-      try {
-        await BcApiService.instance.submitBollettino(bollettino);
-        await LocalDbService.instance.markBollettinoSynced(bollettino.localId);
-      } catch (e) {
-        await LocalDbService.instance.markBollettinoFailed(bollettino.localId, e.toString());
-        // Si prosegue con gli altri bollettini in coda anche se uno fallisce.
       }
     }
   }

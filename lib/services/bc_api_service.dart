@@ -7,7 +7,6 @@ import '../models/app_user.dart';
 import '../models/approval_decision.dart';
 import '../models/approval_item.dart';
 import '../models/assenza_request.dart';
-import '../models/bollettino.dart';
 import '../models/nota_spesa.dart';
 import '../models/project.dart';
 import '../models/service_action.dart';
@@ -221,43 +220,6 @@ class BcApiService {
       headers: headers,
       body: jsonEncode(entry.toBcJson()),
     );
-    _throwIfNotOk(response);
-  }
-
-  /// Invia un bollettino di intervento firmato a Business Central.
-  /// Endpoint atteso: POST {customApiBaseUrl}/serviceReports
-  /// Foto e firma vengono lette dal disco e incluse come stringhe base64
-  /// nel payload: per il volume previsto (poche foto per intervento) è la
-  /// soluzione più semplice; se in futuro i bollettini includessero molte
-  /// foto ad alta risoluzione, andrebbe valutato un endpoint di upload
-  /// separato per gli allegati.
-  Future<void> submitBollettino(Bollettino bollettino) async {
-    final headers = await _authHeaders();
-    final uri = Uri.parse('${AuthService.instance.apiBaseUrl}/serviceReports');
-
-    final clientSignatureBytes = await LocalFiles.readBytes(bollettino.clientSignaturePath);
-    final technicianSignatureBytes = bollettino.technicianSignaturePath != null
-        ? await LocalFiles.readBytes(bollettino.technicianSignaturePath!)
-        : null;
-    final photosBase64 = await Future.wait(
-      bollettino.photoPaths.map((path) async => base64Encode(await LocalFiles.readBytes(path))),
-    );
-
-    final payload = {
-      'projectId': bollettino.projectId,
-      'clientContactName': bollettino.clientContactName,
-      'startTime': bollettino.startTime.toUtc().toIso8601String(),
-      'endTime': bollettino.endTime.toUtc().toIso8601String(),
-      'description': bollettino.description,
-      'materials': bollettino.materials.map((m) => m.toJson()).toList(),
-      // Parte AL "photos" (SS Service Report Photo API): una riga per foto.
-      'photos': photosBase64.map((p) => {'photoBase64': p}).toList(),
-      'clientSignatureBase64': base64Encode(clientSignatureBytes),
-      if (technicianSignatureBytes != null)
-        'technicianSignatureBase64': base64Encode(technicianSignatureBytes),
-    };
-
-    final response = await http.post(uri, headers: headers, body: jsonEncode(payload));
     _throwIfNotOk(response);
   }
 
