@@ -183,9 +183,8 @@ class _HomeScreenState extends State<HomeScreen> {
       await BcApiService.instance.fetchAssignedProjects();
       final fromCache = BcApiService.instance.projectsFromCache;
       if (mounted) {
-        setState(() => _loadError = fromCache
-            ? 'Offline: quanto registrato viene inviato al ritorno della rete.'
-            : null);
+        setState(
+            () => _loadError = fromCache ? 'Offline: quanto registrato viene inviato al ritorno della rete.' : null);
       }
     } catch (e, stackTrace) {
       developer.log('fetchAssignedProjects fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
@@ -228,68 +227,80 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(_loadError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
             ],
             const SizedBox(height: 24),
-            const Text('Cosa vuoi fare?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const Text('Cosa vuoi fare?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              // Le ombre colorate delle piastrelle escono dai bordi.
-              clipBehavior: Clip.none,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.2,
-              children: [
+            _buildTileGrid([
+              ModuleTile(
+                icon: Icons.work_outline_rounded,
+                color: AppColors.primary,
+                label: 'Ore progetti',
+                subtitle: 'Registra le ore di lavoro',
+                onTap: () => _open(const OreProgettiScreen()),
+              ),
+              // Sezione Service: interventi assegnati dalla Dispatch Board,
+              // solo per chi ha il modulo (flag "Tecnico Service" in BC).
+              if (_currentUser?.hasServiceModule == true)
                 ModuleTile(
-                  icon: Icons.work_outline_rounded,
-                  colors: const [Color(0xFF2A93F2), Color(0xFF0B63BF)],
-                  label: 'Ore progetti',
-                  subtitle: 'Registra le ore di lavoro',
-                  onTap: () => _open(const OreProgettiScreen()),
+                  icon: Icons.build_outlined,
+                  color: const Color(0xFF0E8C78),
+                  label: 'Interventi',
+                  subtitle: _servicesToday == null || _servicesToday == 0
+                      ? 'Assistenza clienti'
+                      : '$_servicesToday da fare oggi',
+                  onTap: () => _open(const ServiceListScreen()),
                 ),
-                // Sezione Service: interventi assegnati dalla Dispatch Board,
-                // solo per chi ha il modulo (flag "Tecnico Service" in BC).
-                if (_currentUser?.hasServiceModule == true)
-                  ModuleTile(
-                    icon: Icons.build_outlined,
-                    colors: const [Color(0xFF1CB59C), Color(0xFF0A7A68)],
-                    label: 'Interventi',
-                    subtitle: _servicesToday == null || _servicesToday == 0
-                        ? 'Assistenza clienti'
-                        : '$_servicesToday da fare oggi',
-                    onTap: () => _open(const ServiceListScreen()),
-                  ),
+              ModuleTile(
+                icon: Icons.beach_access_outlined,
+                color: const Color(0xFFD9692E),
+                label: 'Ferie e assenze',
+                subtitle: 'Ferie, malattia, infortunio',
+                onTap: () => _open(const FerieAssenzeScreen()),
+              ),
+              ModuleTile(
+                icon: Icons.receipt_long_outlined,
+                color: const Color(0xFF6A52E0),
+                label: 'Note spese',
+                subtitle: 'Spese con ricevuta',
+                onTap: () => _open(const NoteSpeseScreen()),
+              ),
+              if (_currentUser?.canApprove == true)
                 ModuleTile(
-                  icon: Icons.beach_access_outlined,
-                  colors: const [Color(0xFFF59A5B), Color(0xFFD65F24)],
-                  label: 'Ferie e assenze',
-                  subtitle: 'Ferie, malattia, infortunio',
-                  onTap: () => _open(const FerieAssenzeScreen()),
+                  icon: Icons.fact_check_outlined,
+                  color: const Color(0xFFC98A0A),
+                  label: 'Approvazioni',
+                  subtitle:
+                      (_pendingApprovalsCount ?? 0) == 0 ? 'Nessuna in attesa' : '${_pendingApprovalsCount!} in attesa',
+                  badgeCount: _pendingApprovalsCount,
+                  onTap: () => _open(const ApprovalsScreen()),
                 ),
-                ModuleTile(
-                  icon: Icons.receipt_long_outlined,
-                  colors: const [Color(0xFF8C74FF), Color(0xFF5B41D9)],
-                  label: 'Note spese',
-                  subtitle: 'Spese con ricevuta',
-                  onTap: () => _open(const NoteSpeseScreen()),
-                ),
-                if (_currentUser?.canApprove == true)
-                  ModuleTile(
-                    icon: Icons.fact_check_outlined,
-                    colors: const [Color(0xFFF4B740), Color(0xFFCF8A06)],
-                    label: 'Approvazioni',
-                    subtitle: (_pendingApprovalsCount ?? 0) == 0
-                        ? 'Nessuna in attesa'
-                        : '${_pendingApprovalsCount!} in attesa',
-                    badgeCount: _pendingApprovalsCount,
-                    onTap: () => _open(const ApprovalsScreen()),
-                  ),
-              ],
-            ),
+            ]),
           ],
         ),
       ),
     );
+  }
+
+  /// Piastrelle a due per riga; se l'ultima resta sola prende tutta la
+  /// larghezza.
+  Widget _buildTileGrid(List<Widget> tiles) {
+    const height = 112.0;
+    const gap = 12.0;
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += 2) {
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: gap));
+      rows.add(SizedBox(
+        height: height,
+        child: i + 1 < tiles.length
+            ? Row(children: [
+                Expanded(child: tiles[i]),
+                const SizedBox(width: gap),
+                Expanded(child: tiles[i + 1]),
+              ])
+            : tiles[i],
+      ));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows);
   }
 
   /// Apre un modulo e, al ritorno, aggiorna riepilogo e approvazioni.
