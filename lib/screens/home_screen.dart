@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../core/config.dart';
@@ -201,81 +201,83 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(''),
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Esci', onPressed: _signOut),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([_loadProjects(), _loadCurrentUser(), _loadBranding()]);
-          await _loadTodaySummary();
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 12),
-            _buildTodaySummary(),
-            if (_userError != null) ...[
-              const SizedBox(height: 8),
-              Text(_userError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
-            ],
-            if (_loadError != null) ...[
-              const SizedBox(height: 8),
-              Text(_loadError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
-            ],
-            const SizedBox(height: 24),
-            const Text('Cosa vuoi fare?',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            const SizedBox(height: 12),
-            _buildTileGrid([
-              ModuleTile(
-                icon: Icons.work_outline_rounded,
-                color: AppColors.primary,
-                label: 'Ore progetti',
-                subtitle: 'Registra le ore di lavoro',
-                onTap: () => _open(const OreProgettiScreen()),
-              ),
-              // Sezione Service: interventi assegnati dalla Dispatch Board,
-              // solo per chi ha il modulo (flag "Tecnico Service" in BC).
-              if (_currentUser?.hasServiceModule == true)
-                ModuleTile(
-                  icon: Icons.build_outlined,
-                  color: const Color(0xFF0E8C78),
-                  label: 'Interventi',
-                  subtitle: _servicesToday == null || _servicesToday == 0
-                      ? 'Assistenza clienti'
-                      : '$_servicesToday da fare oggi',
-                  onTap: () => _open(const ServiceListScreen()),
-                ),
-              ModuleTile(
-                icon: Icons.beach_access_outlined,
-                color: const Color(0xFFD9692E),
-                label: 'Ferie e assenze',
-                subtitle: 'Ferie, malattia, infortunio',
-                onTap: () => _open(const FerieAssenzeScreen()),
-              ),
-              ModuleTile(
-                icon: Icons.receipt_long_outlined,
-                color: const Color(0xFF6A52E0),
-                label: 'Note spese',
-                subtitle: 'Spese con ricevuta',
-                onTap: () => _open(const NoteSpeseScreen()),
-              ),
-              if (_currentUser?.canApprove == true)
-                ModuleTile(
-                  icon: Icons.fact_check_outlined,
-                  color: const Color(0xFFC98A0A),
-                  label: 'Approvazioni',
-                  subtitle:
-                      (_pendingApprovalsCount ?? 0) == 0 ? 'Nessuna in attesa' : '${_pendingApprovalsCount!} in attesa',
-                  badgeCount: _pendingApprovalsCount,
-                  onTap: () => _open(const ApprovalsScreen()),
-                ),
-            ]),
-          ],
+      // Niente barra in alto: Esci sta nell'intestazione blu.
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await Future.wait([_loadProjects(), _loadCurrentUser(), _loadBranding()]);
+              await _loadTodaySummary();
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 12),
+                _buildTodaySummary(),
+                if (_userError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_userError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                ],
+                if (_loadError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_loadError!, style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                ],
+                const SizedBox(height: 24),
+                const Text('Cosa vuoi fare?',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                const SizedBox(height: 12),
+                _buildTileGrid([
+                  ModuleTile(
+                    icon: Icons.work_outline_rounded,
+                    color: AppColors.primary,
+                    label: 'Ore progetti',
+                    subtitle: 'Registra le ore di lavoro',
+                    onTap: () => _open(const OreProgettiScreen()),
+                  ),
+                  // Sezione Service: interventi assegnati dalla Dispatch Board,
+                  // solo per chi ha il modulo (flag "Tecnico Service" in BC).
+                  if (_currentUser?.hasServiceModule == true)
+                    ModuleTile(
+                      icon: Icons.build_outlined,
+                      color: const Color(0xFF0E8C78),
+                      label: 'Interventi',
+                      subtitle: _servicesToday == null || _servicesToday == 0
+                          ? 'Assistenza clienti'
+                          : '$_servicesToday da fare oggi',
+                      onTap: () => _open(const ServiceListScreen()),
+                    ),
+                  ModuleTile(
+                    icon: Icons.beach_access_outlined,
+                    color: const Color(0xFFD9692E),
+                    label: 'Ferie e assenze',
+                    subtitle: 'Ferie, malattia, infortunio',
+                    onTap: () => _open(const FerieAssenzeScreen()),
+                  ),
+                  ModuleTile(
+                    icon: Icons.receipt_long_outlined,
+                    color: const Color(0xFF6A52E0),
+                    label: 'Note spese',
+                    subtitle: 'Spese con ricevuta',
+                    onTap: () => _open(const NoteSpeseScreen()),
+                  ),
+                  if (_currentUser?.canApprove == true)
+                    ModuleTile(
+                      icon: Icons.fact_check_outlined,
+                      color: const Color(0xFFC98A0A),
+                      label: 'Approvazioni',
+                      subtitle: (_pendingApprovalsCount ?? 0) == 0
+                          ? 'Nessuna in attesa'
+                          : '${_pendingApprovalsCount!} in attesa',
+                      badgeCount: _pendingApprovalsCount,
+                      onTap: () => _open(const ApprovalsScreen()),
+                    ),
+                ]),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -351,6 +353,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              IconButton(
+                onPressed: _signOut,
+                tooltip: 'Esci',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.logout_rounded, color: Colors.white.withValues(alpha: 0.9), size: 22),
               ),
             ],
           ),
