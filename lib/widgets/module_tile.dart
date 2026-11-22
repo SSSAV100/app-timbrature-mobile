@@ -41,55 +41,66 @@ class _ModuleTileState extends State<ModuleTile> {
         // Stesso fondo dei riquadri del riepilogo: il colore resta solo nell'icona.
         color: AppColors.accentBg,
         borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: widget.onTap,
           onHighlightChanged: (v) => setState(() => _pressed = v),
           splashColor: color.withValues(alpha: 0.10),
           highlightColor: color.withValues(alpha: 0.05),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Stack(
+            children: [
+              // Icona grande in trasparenza nell'angolo, nel colore del modulo.
+              Positioned(
+                right: -12,
+                bottom: -16,
+                child: Icon(widget.icon, size: 84, color: color.withValues(alpha: 0.09)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
-                      child: Icon(widget.icon, color: color, size: 21),
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
+                          child: Icon(widget.icon, color: color, size: 21),
+                        ),
+                        const Spacer(),
+                        if (badge > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+                            child: Text(
+                              '$badge',
+                              style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700),
+                            ),
+                          )
+                        else
+                          const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                      ],
                     ),
                     const Spacer(),
-                    if (badge > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-                        child: Text(
-                          '$badge',
-                          style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700),
-                        ),
-                      )
-                    else
-                      const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                    Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
-                const Spacer(),
-                Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
