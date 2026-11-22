@@ -281,8 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Piastrelle a due per riga; se l'ultima resta sola prende tutta la
-  /// larghezza.
+  /// Piastrelle a due per riga, tutte della stessa misura.
   Widget _buildTileGrid(List<Widget> tiles) {
     const height = 112.0;
     const gap = 12.0;
@@ -291,13 +290,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (rows.isNotEmpty) rows.add(const SizedBox(height: gap));
       rows.add(SizedBox(
         height: height,
-        child: i + 1 < tiles.length
-            ? Row(children: [
-                Expanded(child: tiles[i]),
-                const SizedBox(width: gap),
-                Expanded(child: tiles[i + 1]),
-              ])
-            : tiles[i],
+        child: Row(children: [
+          Expanded(child: tiles[i]),
+          const SizedBox(width: gap),
+          // Ultima piastrella sola: stessa misura delle altre, spazio vuoto
+          // accanto (scelta di Michele, 22.11.2026).
+          Expanded(child: i + 1 < tiles.length ? tiles[i + 1] : const SizedBox()),
+        ]),
       ));
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows);
