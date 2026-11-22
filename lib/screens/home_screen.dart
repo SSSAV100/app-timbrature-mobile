@@ -159,8 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Ore inserite oggi (dal telefono) e interventi di oggi ancora da chiudere.
   Future<void> _loadTodaySummary() async {
+    // Totale della giornata: ore di progetto più ore stipendio Service.
     final entries = await LocalDbService.instance.getTimeEntriesForDate(DateTime.now());
-    if (mounted) setState(() => _hoursToday = entries.fold(0.0, (sum, e) => sum + e.hoursWorked));
+    final serviceHours = await LocalDbService.instance.getServiceSalaryHoursForDate(DateTime.now());
+    if (mounted) setState(() => _hoursToday = entries.fold(serviceHours, (sum, e) => sum + e.hoursWorked));
     if (_currentUser?.hasServiceModule != true) return;
     try {
       final now = DateTime.now();

@@ -172,6 +172,22 @@ class LocalDbService {
 
   // --- Azioni sugli interventi Service ---
 
+  /// Ore stipendio Service con la data indicata (inviate o in coda), per il
+  /// riepilogo "Ore inserite oggi" della home.
+  Future<double> getServiceSalaryHoursForDate(DateTime date) async {
+    final db = await database;
+    final rows =
+        await db.query('pending_service_actions', where: 'kind = ?', whereArgs: [ServiceActionKind.hours.name]);
+    final day =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    var total = 0.0;
+    for (final row in rows) {
+      final action = ServiceAction.fromDbMap(row);
+      if (action.payload['date'] == day) total += (action.payload['hoursSalary'] as num? ?? 0).toDouble();
+    }
+    return total;
+  }
+
   Future<void> saveServiceAction(ServiceAction action) async {
     final db = await database;
     await db.insert('pending_service_actions', action.toDbMap(), conflictAlgorithm: ConflictAlgorithm.replace);
