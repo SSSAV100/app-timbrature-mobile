@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/theme.dart';
 
 /// Piastrella di un modulo nella home (Ore progetti, Interventi,
-/// Ferie/assenze, Note spese, Approvazioni), in versione sobria: fondo
-/// chiaro appena tinto del colore del modulo, icona colorata in un cerchio,
-/// testo scuro. Il colore pieno resta solo all'intestazione della home.
+/// Ferie/assenze, Note spese, Approvazioni): stesso fondo dei riquadri del
+/// riepilogo, icona colorata in un cerchio, testo scuro.
 class ModuleTile extends StatefulWidget {
   final IconData icon;
   final Color color;
@@ -35,25 +34,21 @@ class _ModuleTileState extends State<ModuleTile> {
   Widget build(BuildContext context) {
     final color = widget.color;
     final badge = widget.badgeCount ?? 0;
-    final background = Color.alphaBlend(color.withValues(alpha: 0.07), AppColors.surface);
     return AnimatedScale(
       scale: _pressed ? 0.97 : 1,
       duration: const Duration(milliseconds: 120),
       child: Material(
-        color: background,
-        borderRadius: BorderRadius.circular(18),
+        // Stesso fondo dei riquadri del riepilogo: il colore resta solo nell'icona.
+        color: AppColors.accentBg,
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           onTap: widget.onTap,
           onHighlightChanged: (v) => setState(() => _pressed = v),
           splashColor: color.withValues(alpha: 0.10),
           highlightColor: color.withValues(alpha: 0.05),
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: color.withValues(alpha: 0.16)),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -76,7 +71,7 @@ class _ModuleTileState extends State<ModuleTile> {
                         ),
                       )
                     else
-                      Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.7)),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
                   ],
                 ),
                 const Spacer(),
