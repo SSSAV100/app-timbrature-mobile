@@ -21,6 +21,7 @@ import 'ferie_assenze_screen.dart';
 import 'login_screen.dart';
 import 'note_spese_screen.dart';
 import 'ore_progetti_screen.dart';
+import 'service_detail_screen.dart';
 import 'service_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -47,6 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Uint8List? _companyLogo;
   double _hoursToday = 0;
   int? _servicesToday;
+  double? _vacationHours;
+  ServiceAssignment? _nextService;
+  bool _nextServiceLoaded = false;
   int? _pendingApprovalsCount;
 
   @override
@@ -56,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadCurrentUser();
     _loadBranding();
     _loadTodaySummary();
+    _loadVacation();
 
     // Ogni volta che la connessione torna disponibile, invia quanto
     // registrato offline (vedi SyncService).
@@ -158,6 +163,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Ore inserite oggi (dal telefono) e interventi di oggi ancora da chiudere.
+  Future<void> _loadVacation() async {
+    try {
+      final hours = await BcApiService.instance.fetchVacationBalanceHours();
+      if (mounted) setState(() => _vacationHours = hours);
+    } catch (_) {
+      // Senza rete il riquadro mostra "–".
+    }
+  }
+
   Future<void> _loadTodaySummary() async {
     // Totale della giornata: ore di progetto più ore stipendio Service.
     final entries = await LocalDbService.instance.getTimeEntriesForDate(DateTime.now());
@@ -172,7 +186,24 @@ class _HomeScreenState extends State<HomeScreen> {
           a.allocationDate.month == now.month &&
           a.allocationDate.day == now.day &&
           a.state != ServiceState.finished);
-      if (mounted) setState(() => _servicesToday = today.length);
+      // Prossimo intervento: il primo non terminato da oggi in avanti, per
+      // giorno e ora pianificata.
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final upcoming = assignments
+          .where((a) => a.state != ServiceState.finished && !a.allocationDate.isBefore(startOfToday))
+          .toList()
+        ..sort((a, b) {
+          final byDate = a.allocationDate.compareTo(b.allocationDate);
+          if (byDate != 0) return byDate;
+          return (a.startingTime ?? '99:99').compareTo(b.startingTime ?? '99:99');
+        });
+      if (mounted) {
+        setState(() {
+          _servicesToday = today.length;
+          _nextService = upcoming.isEmpty ? null : upcoming.first;
+          _nextServiceLoaded = true;
+        });
+      }
     } catch (_) {
       // Riepilogo facoltativo: senza dati resta nascosto.
     }
@@ -210,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
           bottom: false,
           child: RefreshIndicator(
             onRefresh: () async {
-              await Future.wait([_loadProjects(), _loadCurrentUser(), _loadBranding()]);
+              await Future.wait([_loadProjects(), _loadCurrentUser(), _loadBranding(), _loadVacation()]);
               await _loadTodaySummary();
             },
             child: ListView(
@@ -311,6 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)).then((_) {
       _loadTodaySummary();
       _loadCurrentUser();
+      _loadVacation();
     });
   }
 
@@ -379,34 +411,66 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Riepilogo a riquadri, due per riga: ore di oggi e ferie residue per
+  /// tutti, più interventi di oggi e prossimo intervento per i tecnici.
   Widget _buildTodaySummary() {
-    return Row(
-      children: [
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.schedule,
-            label: 'Ore inserite oggi',
-            value: '${_hoursToday.toStringAsFixed(_hoursToday == _hoursToday.roundToDouble() ? 0 : 2)} h',
-            onTap: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const OreProgettiScreen()))
-                .then((_) => _loadTodaySummary()),
-          ),
+    final cards = <Widget>[
+      _SummaryCard(
+        icon: Icons.schedule,
+        label: 'Ore inserite oggi',
+        value: '${_formatHours(_hoursToday)} h',
+        onTap: () => _open(const OreProgettiScreen()),
+      ),
+      _SummaryCard(
+        icon: Icons.beach_access_outlined,
+        label: 'Ferie residue',
+        value: _vacationHours == null ? '–' : '${_formatHours(_vacationHours!)} h',
+        onTap: () => _open(const FerieAssenzeScreen()),
+      ),
+      if (_currentUser?.hasServiceModule == true) ...[
+        _SummaryCard(
+          icon: Icons.build_outlined,
+          label: 'Interventi oggi',
+          value: _servicesToday == null ? '–' : '$_servicesToday',
+          onTap: () => _open(const ServiceListScreen()),
         ),
-        if (_currentUser?.hasServiceModule == true) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _SummaryCard(
-              icon: Icons.build_outlined,
-              label: 'Interventi oggi',
-              value: _servicesToday == null ? '–' : '$_servicesToday',
-              onTap: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const ServiceListScreen()))
-                  .then((_) => _loadTodaySummary()),
-            ),
-          ),
-        ],
+        _SummaryCard(
+          icon: Icons.event_outlined,
+          label: _nextService == null
+              ? (_nextServiceLoaded ? 'Nessun intervento' : 'Prossimo intervento')
+              : _nextService!.customerName,
+          value: _nextService == null ? '–' : _nextServiceWhen(_nextService!),
+          onTap: () =>
+              _open(_nextService == null ? const ServiceListScreen() : ServiceDetailScreen(assignment: _nextService!)),
+        ),
       ],
-    );
+    ];
+    final rows = <Widget>[];
+    for (var i = 0; i < cards.length; i += 2) {
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 10));
+      rows.add(Row(children: [
+        Expanded(child: cards[i]),
+        const SizedBox(width: 10),
+        Expanded(child: i + 1 < cards.length ? cards[i + 1] : const SizedBox()),
+      ]));
+    }
+    return Column(children: rows);
+  }
+
+  String _formatHours(double hours) =>
+      hours.toStringAsFixed(hours == hours.roundToDouble() ? 0 : (hours * 10 == (hours * 10).roundToDouble() ? 1 : 2));
+
+  /// "14:00" se è oggi, "Domani 08:00", altrimenti "Gio 26.11".
+  String _nextServiceWhen(ServiceAssignment a) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(a.allocationDate.year, a.allocationDate.month, a.allocationDate.day);
+    final diff = day.difference(today).inDays;
+    final time = a.startingTime ?? '';
+    if (diff <= 0) return time.isEmpty ? 'Oggi' : time;
+    if (diff == 1) return time.isEmpty ? 'Domani' : 'Domani $time';
+    final label = DateFormat('EEE d.MM', 'it_IT').format(day);
+    return label[0].toUpperCase() + label.substring(1);
   }
 
   String _initials(String? fullName) {
@@ -444,8 +508,14 @@ class _SummaryCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Text(value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                 ],
               ),
             ),
