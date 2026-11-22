@@ -30,6 +30,15 @@ class ServiceAssignment {
   /// Ora di inizio pianificata dall'ufficio ("HH:mm"), se c'è.
   final String? startingTime;
 
+  /// Ora di fine pianificata ("HH:mm"), se c'è.
+  final String? finishingTime;
+
+  /// "14:00–16:00", "14:00" o null se l'ufficio non ha pianificato l'ora.
+  String? get plannedTimeRange {
+    if (startingTime == null) return null;
+    return finishingTime == null ? startingTime : '$startingTime–$finishingTime';
+  }
+
   const ServiceAssignment({
     required this.id,
     required this.orderNo,
@@ -50,6 +59,7 @@ class ServiceAssignment {
     required this.workDescription,
     this.startedAt,
     this.startingTime,
+    this.finishingTime,
   });
 
   String get fullAddress => [address, '$postCode $city'.trim()].where((e) => e.isNotEmpty).join(', ');
@@ -75,6 +85,7 @@ class ServiceAssignment {
       workDescription: json['workDescription'] as String? ?? '',
       startedAt: _parseStartedAt(json['startedAt'] as String?),
       startingTime: _parseTime(json['startingTime'] as String?),
+      finishingTime: _parseTime(json['finishingTime'] as String?),
     );
   }
 

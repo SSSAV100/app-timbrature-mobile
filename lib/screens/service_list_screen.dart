@@ -44,7 +44,10 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
       final assignments = await BcApiService.instance.fetchServiceAssignments();
       assignments.sort((a, b) {
         final byDate = a.allocationDate.compareTo(b.allocationDate);
-        return byDate != 0 ? byDate : a.orderNo.compareTo(b.orderNo);
+        if (byDate != 0) return byDate;
+        // Nello stesso giorno, per ora pianificata (quelli senza ora in fondo).
+        final byTime = (a.startingTime ?? '99:99').compareTo(b.startingTime ?? '99:99');
+        return byTime != 0 ? byTime : a.orderNo.compareTo(b.orderNo);
       });
       final actionsByKey = <String, List<ServiceAction>>{};
       for (final a in assignments) {
@@ -117,7 +120,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
               for (final a in entry.value)
                 _AssignmentTile(
                   assignment: a,
-                  state: ServiceAction.effectiveState(a.state, _actionsByKey['${a.orderNo}/${a.itemLineNo}'] ?? const []),
+                  state:
+                      ServiceAction.effectiveState(a.state, _actionsByKey['${a.orderNo}/${a.itemLineNo}'] ?? const []),
                   onTap: () => _open(a),
                 ),
             ],
@@ -166,15 +170,20 @@ class _AssignmentTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    assignment.customerName.isEmpty ? assignment.orderNo : assignment.customerName,
+                    [
+                      if (assignment.plannedTimeRange != null) assignment.plannedTimeRange!,
+                      assignment.customerName.isEmpty ? assignment.orderNo : assignment.customerName,
+                    ].join('  ·  '),
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                   if (assignment.orderDescription.isNotEmpty)
                     Text(assignment.orderDescription, style: const TextStyle(fontSize: 13)),
                   Text(
-                    [assignment.city, if (assignment.zoneCode.isNotEmpty) 'zona ${assignment.zoneCode}', assignment.orderNo]
-                        .where((e) => e.isNotEmpty)
-                        .join(' · '),
+                    [
+                      assignment.city,
+                      if (assignment.zoneCode.isNotEmpty) 'zona ${assignment.zoneCode}',
+                      assignment.orderNo
+                    ].where((e) => e.isNotEmpty).join(' · '),
                     style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],

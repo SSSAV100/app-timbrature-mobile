@@ -211,6 +211,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               icon: Icons.event_outlined,
               text: [
                 DateFormat('EEE dd.MM.yyyy', 'it_IT').format(_a.allocationDate),
+                if (_a.plannedTimeRange != null) 'ore ${_a.plannedTimeRange}',
                 if (_a.allocatedHours > 0) '${_a.allocatedHours.toStringAsFixed(1)} h previste',
                 if (_a.zoneCode.isNotEmpty) 'zona ${_a.zoneCode}',
               ].join(' · '),
