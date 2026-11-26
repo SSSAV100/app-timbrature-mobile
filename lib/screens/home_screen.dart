@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config.dart';
 import '../core/day_parts.dart';
@@ -422,67 +423,164 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Riepilogo a riquadri, due per riga: ore di oggi e ferie residue per
-  /// tutti, più interventi di oggi e prossimo intervento per i tecnici.
   Widget _buildTodaySummary() {
-    final cards = <Widget>[
-      _SummaryCard(
-        icon: Icons.schedule,
-        label: 'Ore inserite oggi',
-        value: '${_formatHours(_hoursToday)} h',
-        onTap: () => _open(const OreProgettiScreen()),
-      ),
-      _SummaryCard(
-        icon: Icons.beach_access_outlined,
-        label: 'Ferie residue',
-        value: _vacationHours == null ? '–' : '${_formatHours(_vacationHours!)} h',
-        onTap: () => _open(const FerieAssenzeScreen()),
-      ),
-      if (_currentUser?.hasServiceModule == true) ...[
-        _SummaryCard(
-          icon: Icons.build_outlined,
-          label: 'Interventi oggi',
-          value: _servicesToday == null ? '–' : '$_servicesToday',
-          onTap: () => _open(const ServiceListScreen()),
-        ),
-        _SummaryCard(
-          icon: Icons.event_outlined,
-          label: _nextService == null
-              ? (_nextServiceLoaded ? 'Nessun intervento' : 'Prossimo intervento')
-              : _nextService!.customerName,
-          value: _nextService == null ? '–' : _nextServiceWhen(_nextService!),
-          onTap: () =>
-              _open(_nextService == null ? const ServiceListScreen() : ServiceDetailScreen(assignment: _nextService!)),
-        ),
+    final isTechnician = _currentUser?.hasServiceModule == true;
+    return Column(
+      children: [
+        // Tecnici: il prossimo intervento in grande, in cima (richiesta del
+        // cliente, 26.11.2026), con il numero di interventi di oggi.
+        if (isTechnician) ...[
+          _buildNextServiceCard(),
+          const SizedBox(height: 10),
+        ],
+        Row(children: [
+          Expanded(
+            child: _SummaryCard(
+              icon: Icons.schedule,
+              label: 'Ore inserite oggi',
+              value: '${_formatHours(_hoursToday)} h',
+              onTap: () => _open(const OreProgettiScreen()),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _SummaryCard(
+              icon: Icons.beach_access_outlined,
+              label: 'Ferie residue',
+              value: _vacationHours == null ? '–' : '${_formatHours(_vacationHours!)} h',
+              onTap: () => _open(const FerieAssenzeScreen()),
+            ),
+          ),
+        ]),
       ],
-    ];
-    final rows = <Widget>[];
-    for (var i = 0; i < cards.length; i += 2) {
-      if (rows.isNotEmpty) rows.add(const SizedBox(height: 10));
-      rows.add(Row(children: [
-        Expanded(child: cards[i]),
-        const SizedBox(width: 10),
-        Expanded(child: i + 1 < cards.length ? cards[i + 1] : const SizedBox()),
-      ]));
-    }
-    return Column(children: rows);
+    );
   }
 
-  String _formatHours(double hours) =>
-      hours.toStringAsFixed(hours == hours.roundToDouble() ? 0 : (hours * 10 == (hours * 10).roundToDouble() ? 1 : 2));
+  Widget _buildNextServiceCard() {
+    const accent = Color(0xFF0E8C78);
+    final next = _nextService;
+    final todayCount = _servicesToday ?? 0;
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _open(next == null ? const ServiceListScreen() : ServiceDetailScreen(assignment: next)),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+                    child: const Icon(Icons.build_outlined, size: 18, color: accent),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Prossimo intervento',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accent)),
+                  ),
+                  Text(
+                    todayCount == 1 ? '1 da fare oggi' : '$todayCount da fare oggi',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (next == null)
+                Text(
+                  _nextServiceLoaded ? 'Nessun intervento in programma.' : 'Caricamento…',
+                  style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                )
+              else ...[
+                Text(
+                  _nextServiceWhenLong(next),
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  next.customerName.isEmpty ? next.orderNo : next.customerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
+                if (next.orderDescription.isNotEmpty)
+                  Text(next.orderDescription,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                if (next.fullAddress.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.place_outlined, size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(next.fullAddress,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (next.fullAddress.isNotEmpty)
+                      OutlinedButton.icon(
+                        onPressed: () => launchUrl(
+                            Uri.parse('https://maps.apple.com/?q=${Uri.encodeComponent(next.fullAddress)}'),
+                            mode: LaunchMode.externalApplication),
+                        icon: const Icon(Icons.navigation_outlined, size: 18),
+                        label: const Text('Naviga'),
+                        style: OutlinedButton.styleFrom(foregroundColor: accent),
+                      ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => _open(const ServiceListScreen()),
+                      style: TextButton.styleFrom(foregroundColor: accent),
+                      child: const Text('Tutti gli interventi'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-  /// "14:00" se è oggi, "Domani 08:00", altrimenti "Gio 26.11".
-  String _nextServiceWhen(ServiceAssignment a) {
+  /// "Oggi 09:30–12:00", "Domani 08:00", "Gio 26.11 14:00".
+  String _nextServiceWhenLong(ServiceAssignment a) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(a.allocationDate.year, a.allocationDate.month, a.allocationDate.day);
     final diff = day.difference(today).inDays;
-    final time = a.startingTime ?? '';
-    if (diff <= 0) return time.isEmpty ? 'Oggi' : time;
-    if (diff == 1) return time.isEmpty ? 'Domani' : 'Domani $time';
-    final label = DateFormat('EEE d.MM', 'it_IT').format(day);
-    return label[0].toUpperCase() + label.substring(1);
+    String dayLabel;
+    if (diff <= 0) {
+      dayLabel = 'Oggi';
+    } else if (diff == 1) {
+      dayLabel = 'Domani';
+    } else {
+      final l = DateFormat('EEE d.MM', 'it_IT').format(day);
+      dayLabel = l[0].toUpperCase() + l.substring(1);
+    }
+    final time = a.plannedTimeRange;
+    return time == null ? dayLabel : '$dayLabel $time';
   }
+
+  String _formatHours(double hours) =>
+      hours.toStringAsFixed(hours == hours.roundToDouble() ? 0 : (hours * 10 == (hours * 10).roundToDouble() ? 1 : 2));
 
   String _initials(String? fullName) {
     if (fullName == null || fullName.trim().isEmpty) return '?';
