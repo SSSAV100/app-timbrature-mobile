@@ -334,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Piastrelle a due per riga, tutte della stessa misura.
   Widget _buildTileGrid(List<Widget> tiles) {
-    const height = 112.0;
+    const height = 100.0;
     const gap = 12.0;
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
@@ -460,22 +460,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Prossimo intervento, compatto: intestazione con il conteggio di oggi
-  /// (tocca per l'elenco), quando, cliente e indirizzo con Naviga.
+  /// Prossimo intervento in evidenza (richiesta del cliente): orario grande,
+  /// cliente, descrizione e indirizzo con Naviga; "da fare oggi" apre l'elenco.
   Widget _buildNextServiceCard() {
     const accent = Color(0xFF0E8C78);
     final next = _nextService;
     final todayCount = _servicesToday ?? 0;
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () => _open(next == null ? const ServiceListScreen() : ServiceDetailScreen(assignment: next)),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
           ),
           child: Column(
@@ -483,17 +483,22 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.build_outlined, size: 16, color: accent),
-                  const SizedBox(width: 6),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+                    child: const Icon(Icons.build_outlined, size: 18, color: accent),
+                  ),
+                  const SizedBox(width: 10),
                   const Expanded(
                     child: Text('Prossimo intervento',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent)),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accent)),
                   ),
                   InkWell(
                     onTap: () => _open(const ServiceListScreen()),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                       child: Text(
                         '$todayCount da fare oggi ›',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent),
@@ -502,59 +507,59 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 10),
               if (next == null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    _nextServiceLoaded ? 'Nessun intervento in programma.' : 'Caricamento…',
-                    style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
-                  ),
+                Text(
+                  _nextServiceLoaded ? 'Nessun intervento in programma.' : 'Caricamento…',
+                  style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
                 )
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _nextServiceWhenLong(next),
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                          ),
-                          Text(
-                            [
-                              next.customerName.isEmpty ? next.orderNo : next.customerName,
-                              if (next.orderDescription.isNotEmpty) next.orderDescription,
-                            ].join(' · '),
+              else ...[
+                Text(
+                  _nextServiceWhenLong(next),
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  next.customerName.isEmpty ? next.orderNo : next.customerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
+                if (next.orderDescription.isNotEmpty)
+                  Text(next.orderDescription,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                if (next.fullAddress.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.place_outlined, size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(next.fullAddress,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                          ),
-                          if (next.fullAddress.isNotEmpty)
-                            Text(next.fullAddress,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        ],
+                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                       ),
-                    ),
-                    if (next.fullAddress.isNotEmpty)
-                      IconButton(
-                        tooltip: 'Naviga',
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
                         onPressed: () => launchUrl(
                             Uri.parse('https://maps.apple.com/?q=${Uri.encodeComponent(next.fullAddress)}'),
                             mode: LaunchMode.externalApplication),
-                        icon: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
-                          child: const Icon(Icons.navigation_outlined, color: accent, size: 20),
+                        icon: const Icon(Icons.navigation_outlined, size: 16),
+                        label: const Text('Naviga'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: accent,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
+              ],
             ],
           ),
         ),
