@@ -26,6 +26,9 @@ class AppUser {
 
   bool get hasServiceModule => modules.contains('service');
 
+  /// Note spese nell'app: solo se attivo nella Setup di BC ("spese").
+  bool get hasExpensesModule => modules.contains('spese');
+
   bool get isResponsabileCantiere => roles.contains('responsabileCantiere');
 
   /// True se l'utente ha almeno un ruolo che dà accesso alla schermata

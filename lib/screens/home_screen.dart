@@ -299,13 +299,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: 'Ferie, malattia, infortunio',
                     onTap: () => _open(const FerieAssenzeScreen()),
                   ),
-                  ModuleTile(
-                    icon: Icons.receipt_long_outlined,
-                    color: const Color(0xFF6A52E0),
-                    label: 'Note spese',
-                    subtitle: 'Spese con ricevuta',
-                    onTap: () => _open(const NoteSpeseScreen()),
-                  ),
+                  if (_currentUser?.hasExpensesModule == true)
+                    ModuleTile(
+                      icon: Icons.receipt_long_outlined,
+                      color: const Color(0xFF6A52E0),
+                      label: 'Note spese',
+                      subtitle: 'Spese con ricevuta',
+                      onTap: () => _open(const NoteSpeseScreen()),
+                    ),
                   if (_currentUser?.canApprove == true)
                     ModuleTile(
                       icon: Icons.fact_check_outlined,
