@@ -66,7 +66,7 @@ class ServiceAction {
         ServiceActionKind.event => switch (payload['eventType']) {
             'start' => 'Inizio intervento',
             'finish' => 'Fine intervento',
-            _ => 'Da riprogrammare',
+            _ => 'Termina e riprogramma',
           },
         ServiceActionKind.hours =>
           'Ore${payload['dayPart'] == null ? '' : ' ${payload['dayPart']}'}${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio',
