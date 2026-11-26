@@ -16,12 +16,23 @@ class AppUser {
   /// Limiti della giornata dalla Setup (null = valori predefiniti).
   final String? dayRules;
 
+  /// Apprendista oggi (malattia: certificato dal primo giorno).
+  final bool apprentice;
+
+  /// Ferie: primo giorno chiedibile (preavviso in giorni lavorativi).
+  final DateTime? firstVacationDate;
+
+  /// Ultimo profilo letto da BC (home), per i controlli delle altre schermate.
+  static AppUser? current;
+
   const AppUser({
     required this.employeeId,
     required this.fullName,
     required this.roles,
     this.modules = const {'progetti'},
     this.dayRules,
+    this.apprentice = false,
+    this.firstVacationDate,
   });
 
   bool get hasServiceModule => modules.contains('service');
@@ -31,9 +42,12 @@ class AppUser {
 
   bool get isResponsabileCantiere => roles.contains('responsabileCantiere');
 
+  /// Approva le ferie (primo o secondo approvatore).
+  bool get isVacationApprover => roles.contains('approvatoreFerie');
+
   /// True se l'utente ha almeno un ruolo che dà accesso alla schermata
   /// Approvazioni nell'app.
-  bool get canApprove => isResponsabileCantiere;
+  bool get canApprove => isResponsabileCantiere || isVacationApprover;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     // "roles" arriva da BC come stringa con valori separati da virgola
@@ -57,6 +71,8 @@ class AppUser {
       roles: rawRoles,
       modules: rawModules,
       dayRules: json['dayRules'] as String?,
+      apprentice: json['apprentice'] as bool? ?? false,
+      firstVacationDate: DateTime.tryParse(json['firstVacationDate'] as String? ?? ''),
     );
   }
 }

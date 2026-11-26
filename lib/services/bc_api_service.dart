@@ -272,6 +272,8 @@ class BcApiService {
       if (assenza.incidentLocation != null) 'incidentLocation': assenza.incidentLocation,
       if (attachmentBase64 != null) 'attachmentBase64': attachmentBase64,
       if (attachmentFileName != null) 'attachmentFileName': attachmentFileName,
+      if (assenza.approverResourceNo != null) 'approverResourceNo': assenza.approverResourceNo,
+      'appRequestId': assenza.localId,
     };
 
     final response = await http.post(uri, headers: headers, body: jsonEncode(payload));
@@ -369,6 +371,53 @@ class BcApiService {
     _throwIfNotOk(response);
   }
 
+  /// Responsabili tra cui scegliere chi approva le ferie (copia locale per
+  /// l'offline).
+  Future<List<VacationApprover>> fetchVacationApprovers() async {
+    final rows = await _getWithCache('vacationApprovers', 'vacation_approvers.json');
+    return rows
+        .map((r) => VacationApprover(r['id'] as String? ?? '', r['name'] as String? ?? ''))
+        .where((a) => a.id.isNotEmpty)
+        .toList();
+  }
+
+  /// Stato in BC delle richieste del dipendente, per id della richiesta nell'app.
+  Future<Map<String, VacationStatus>> fetchAbsenceStatuses() async {
+    final headers = await _authHeaders();
+    final response = await http.get(Uri.parse('${AuthService.instance.apiBaseUrl}/absenceStatuses'), headers: headers);
+    _throwIfNotOk(response);
+    final rows = (jsonDecode(response.body)['value'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    return {
+      for (final r in rows)
+        if ((r['appRequestId'] as String? ?? '').isNotEmpty)
+          r['appRequestId'] as String: VacationStatus(
+            r['approvalStatus'] as String? ?? 'none',
+            r['decisionComment'] as String? ?? '',
+          ),
+    };
+  }
+
+  /// Ferie in attesa dell'utente corrente (primo o secondo approvatore).
+  Future<List<VacationApprovalItem>> fetchVacationApprovals() async {
+    final headers = await _authHeaders();
+    final response = await http.get(Uri.parse('${AuthService.instance.apiBaseUrl}/vacationApprovals'), headers: headers);
+    _throwIfNotOk(response);
+    final rows = (jsonDecode(response.body)['value'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    return rows.map(VacationApprovalItem.fromJson).toList();
+  }
+
+  /// Approva o rifiuta delle ferie (commento obbligatorio per rifiutare).
+  Future<void> submitVacationDecision(int id, {required bool approved, String comment = ''}) async {
+    final headers = await _authHeaders();
+    headers['If-Match'] = '*';
+    final response = await http.patch(
+      Uri.parse('${AuthService.instance.apiBaseUrl}/vacationDecisions($id)'),
+      headers: headers,
+      body: jsonEncode({'decision': approved ? 'approved' : 'rejected', 'comment': comment}),
+    );
+    _throwIfNotOk(response);
+  }
+
   void _throwIfNotOk(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw BcApiException(
@@ -390,3 +439,51 @@ class BcApiException implements Exception {
   @override
   String toString() => message;
 }
+
+class VacationApprover {
+  final String id; // Nr. risorsa
+  final String name;
+  const VacationApprover(this.id, this.name);
+}
+
+/// Stato di approvazione in BC: none, pendingFirst, pendingSecond, approved, rejected.
+class VacationStatus {
+  final String approval;
+  final String comment;
+  const VacationStatus(this.approval, this.comment);
+
+  bool get isPending => approval == 'pendingFirst' || approval == 'pendingSecond';
+  bool get isApproved => approval == 'approved';
+  bool get isRejected => approval == 'rejected';
+}
+
+class VacationApprovalItem {
+  final int id;
+  final String employeeName;
+  final DateTime startDate;
+  final DateTime endDate;
+  final double hoursPerDay;
+  final String note;
+  final int level;
+
+  const VacationApprovalItem({
+    required this.id,
+    required this.employeeName,
+    required this.startDate,
+    required this.endDate,
+    required this.hoursPerDay,
+    required this.note,
+    required this.level,
+  });
+
+  factory VacationApprovalItem.fromJson(Map<String, dynamic> j) => VacationApprovalItem(
+        id: (j['id'] as num).toInt(),
+        employeeName: j['employeeName'] as String? ?? '',
+        startDate: DateTime.parse(j['startDate'] as String),
+        endDate: DateTime.parse(j['endDate'] as String),
+        hoursPerDay: (j['hoursPerDay'] as num? ?? 0).toDouble(),
+        note: j['note'] as String? ?? '',
+        level: (j['level'] as num? ?? 1).toInt(),
+      );
+}
+

@@ -18,6 +18,7 @@ class ApprovalsScreen extends StatefulWidget {
 
 class _ApprovalsScreenState extends State<ApprovalsScreen> {
   List<ApprovalItem> _items = [];
+  List<VacationApprovalItem> _vacations = [];
   bool _isLoading = true;
   String? _loadError;
 
@@ -33,8 +34,14 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       _loadError = null;
     });
     try {
-      final items = await BcApiService.instance.fetchPendingApprovals();
-      setState(() => _items = items);
+      final results = await Future.wait([
+        BcApiService.instance.fetchPendingApprovals(),
+        BcApiService.instance.fetchVacationApprovals(),
+      ]);
+      setState(() {
+        _items = results[0] as List<ApprovalItem>;
+        _vacations = results[1] as List<VacationApprovalItem>;
+      });
     } catch (_) {
       setState(() => _loadError = 'Impossibile aggiornare le approvazioni (verifica la connessione).');
     } finally {
@@ -58,6 +65,17 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
   }
 
+  Future<void> _openVacationSheet(VacationApprovalItem item) async {
+    final decided = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _VacationDecisionSheet(item: item),
+    );
+    if (decided == true) setState(() => _vacations.removeWhere((v) => v.id == item.id));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,7 +91,18 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                     Text(_loadError!, style: const TextStyle(fontSize: 12, color: Colors.orange)),
                     const SizedBox(height: 12),
                   ],
-                  if (_items.isEmpty)
+                  if (_vacations.isNotEmpty) ...[
+                    const Text('Ferie', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    for (final v in _vacations) _VacationTile(item: v, onTap: () => _openVacationSheet(v)),
+                    const SizedBox(height: 16),
+                    if (_items.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text('Straordinari', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
+                  ],
+                  if (_items.isEmpty && _vacations.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Text(
@@ -242,3 +271,154 @@ class _DecisionSheetState extends State<_DecisionSheet> {
     );
   }
 }
+
+class _VacationTile extends StatelessWidget {
+  final VacationApprovalItem item;
+  final VoidCallback onTap;
+  const _VacationTile({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final f = DateFormat('dd.MM.yyyy');
+    final sameDay = item.startDate == item.endDate;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border, width: 0.6),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.beach_access_outlined, size: 20, color: Color(0xFFD9692E)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.employeeName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(
+                    sameDay ? f.format(item.startDate) : '${f.format(item.startDate)} - ${f.format(item.endDate)}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  if (item.note.isNotEmpty) Text(item.note, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('${item.hoursPerDay.toStringAsFixed(1)} h/g', style: const TextStyle(fontSize: 13)),
+                Text(item.level == 2 ? '2° livello' : '1° livello',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Approva o rifiuta delle ferie. Rifiutare chiede un commento, che il
+/// dipendente vede nell'app. Serve la rete (la decisione va subito in BC).
+class _VacationDecisionSheet extends StatefulWidget {
+  final VacationApprovalItem item;
+  const _VacationDecisionSheet({required this.item});
+
+  @override
+  State<_VacationDecisionSheet> createState() => _VacationDecisionSheetState();
+}
+
+class _VacationDecisionSheetState extends State<_VacationDecisionSheet> {
+  final _commentController = TextEditingController();
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _decide(bool approved) async {
+    final comment = _commentController.text.trim();
+    if (!approved && comment.isEmpty) {
+      setState(() => _error = 'Per rifiutare scrivi un commento per il dipendente.');
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await BcApiService.instance.submitVacationDecision(widget.item.id, approved: approved, comment: comment);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _error = 'Decisione non inviata: $e';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = DateFormat('dd.MM.yyyy');
+    final item = widget.item;
+    return Padding(
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Ferie di ${item.employeeName}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text('${f.format(item.startDate)} - ${f.format(item.endDate)} · ${item.hoursPerDay.toStringAsFixed(1)} h/g',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          if (item.note.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(item.note, style: const TextStyle(fontSize: 13)),
+          ],
+          const SizedBox(height: 16),
+          TextField(
+            controller: _commentController,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Commento (obbligatorio per rifiutare)'),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.danger)),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _sending ? null : () => _decide(false),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
+                  child: const Text('Rifiuta'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: _sending ? null : () => _decide(true),
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+                  child: const Text('Approva'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+

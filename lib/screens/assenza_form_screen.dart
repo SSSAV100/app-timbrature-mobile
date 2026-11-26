@@ -7,7 +7,9 @@ import 'package:uuid/uuid.dart';
 
 import '../core/local_files.dart';
 import '../core/theme.dart';
+import '../models/app_user.dart';
 import '../models/assenza_request.dart';
+import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/sync_service.dart';
 
@@ -30,6 +32,37 @@ class _AssenzaFormScreenState extends State<AssenzaFormScreen> {
   DateTimeRange _dateRange = DateTimeRange(start: DateTime.now(), end: DateTime.now());
   String? _attachmentPath;
   bool _isSubmitting = false;
+  // Ferie: responsabile scelto come primo approvatore (il secondo è in BC).
+  List<VacationApprover> _approvers = [];
+  VacationApprover? _approver;
+  String? _approversError;
+
+  @override
+  void initState() {
+    super.initState();
+    BcApiService.instance.fetchVacationApprovers().then((list) {
+      if (mounted) setState(() => _approvers = list);
+    }).catchError((Object e) {
+      if (mounted) setState(() => _approversError = 'Responsabili non disponibili: verifica la connessione.');
+    });
+  }
+
+  bool get _apprentice => AppUser.current?.apprentice ?? false;
+
+  /// Primo giorno di ferie chiedibile: da BC (`me`), altrimenti oggi più 2
+  /// giorni lavorativi (lun-ven). BC rifà comunque il controllo.
+  DateTime get _firstVacationDate {
+    final fromBc = AppUser.current?.firstVacationDate;
+    if (fromBc != null) return DateTime(fromBc.year, fromBc.month, fromBc.day);
+    var day = DateTime.now();
+    day = DateTime(day.year, day.month, day.day);
+    var counted = 0;
+    while (counted < 2) {
+      day = day.add(const Duration(days: 1));
+      if (day.weekday <= 5) counted++;
+    }
+    return day;
+  }
 
   @override
   void dispose() {
@@ -85,7 +118,11 @@ class _AssenzaFormScreenState extends State<AssenzaFormScreen> {
     setState(() => _attachmentPath = permanentPath);
   }
 
-  bool get _requiresAttachment => _type == AssenzaType.malattia || _type == AssenzaType.infortunio;
+  bool get _requiresAttachment =>
+      AssenzaRequest.attachmentRequired(_type, _dateRange.start, _dateRange.end, apprentice: _apprentice);
+
+  // Malattia corta: il certificato si può allegare anche se non obbligatorio.
+  bool get _showAttachment => _type == AssenzaType.malattia || _type == AssenzaType.infortunio;
 
   Future<void> _submit() async {
     final hours = double.tryParse(_hoursController.text.replaceAll(',', '.'));
@@ -100,6 +137,17 @@ class _AssenzaFormScreenState extends State<AssenzaFormScreen> {
             : 'Allega il referto/dichiarazione prima di inviare.',
       );
       return;
+    }
+    if (_type == AssenzaType.ferie) {
+      if (_approver == null) {
+        _showError('Scegli il responsabile che approva le ferie.');
+        return;
+      }
+      if (_dateRange.start.isBefore(_firstVacationDate)) {
+        _showError('Le ferie vanno chieste con almeno 2 giorni lavorativi di preavviso: '
+            'il primo giorno possibile è ${DateFormat('EEEE dd.MM', 'it_IT').format(_firstVacationDate)}.');
+        return;
+      }
     }
     if (_type == AssenzaType.infortunio && _incidentDescriptionController.text.trim().isEmpty) {
       _showError('Descrivi brevemente l\'accaduto.');
@@ -122,7 +170,9 @@ class _AssenzaFormScreenState extends State<AssenzaFormScreen> {
         incidentLocation: _type == AssenzaType.infortunio && _incidentLocationController.text.trim().isNotEmpty
             ? _incidentLocationController.text.trim()
             : null,
-        attachmentPath: _attachmentPath,
+        attachmentPath: _showAttachment ? _attachmentPath : null,
+        approverResourceNo: _type == AssenzaType.ferie ? _approver?.id : null,
+        approverName: _type == AssenzaType.ferie ? _approver?.name : null,
       );
 
       await LocalDbService.instance.saveAssenza(assenza);
@@ -170,6 +220,30 @@ class _AssenzaFormScreenState extends State<AssenzaFormScreen> {
           ),
           const SizedBox(height: 12),
 
+          if (_type == AssenzaType.ferie) ...[
+            if (_approversError != null)
+              Text(_approversError!, style: const TextStyle(fontSize: 12, color: AppColors.danger))
+            else
+              DropdownButtonFormField<VacationApprover>(
+                initialValue: _approver,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Responsabile che approva',
+                  helperText: 'Riceve la richiesta per primo',
+                ),
+                items: _approvers
+                    .map((a) => DropdownMenuItem(value: a, child: Text(a.name, overflow: TextOverflow.ellipsis)))
+                    .toList(),
+                onChanged: (a) => setState(() => _approver = a),
+              ),
+            const SizedBox(height: 4),
+            Text(
+              'Preavviso di 2 giorni lavorativi: dal ${DateFormat('EEEE dd.MM', 'it_IT').format(_firstVacationDate)}.',
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           TextField(
             controller: _hoursController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -200,11 +274,11 @@ class _AssenzaFormScreenState extends State<AssenzaFormScreen> {
             maxLines: 2,
           ),
 
-          if (_requiresAttachment) ...[
+          if (_showAttachment) ...[
             const SizedBox(height: 20),
             Text(
               _type == AssenzaType.malattia
-                  ? 'Certificato medico (obbligatorio)'
+                  ? 'Certificato medico (${_requiresAttachment ? 'obbligatorio' : 'facoltativo: obbligatorio da 3 giorni'})'
                   : 'Referto/dichiarazione per l\'assicuratore (obbligatorio)',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),

@@ -21,6 +21,8 @@ class _FerieAssenzeScreenState extends State<FerieAssenzeScreen> {
   double? _balanceHours;
   String? _balanceError;
   List<AssenzaRequest> _requests = [];
+  // Stato di approvazione in BC, per id della richiesta nell'app.
+  Map<String, VacationStatus> _statuses = {};
   bool _isLoading = true;
 
   @override
@@ -51,6 +53,12 @@ class _FerieAssenzeScreenState extends State<FerieAssenzeScreen> {
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+    try {
+      final statuses = await BcApiService.instance.fetchAbsenceStatuses();
+      if (mounted) setState(() => _statuses = statuses);
+    } catch (_) {
+      // Senza rete restano gli ultimi stati letti.
     }
   }
 
@@ -155,6 +163,7 @@ class _FerieAssenzeScreenState extends State<FerieAssenzeScreen> {
               children: [
                 Text(_labelFor(request.type), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 Text(period, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                if (request.type == AssenzaType.ferie) _approvalChip(request),
                 // Errore restituito da BC all'ultimo invio (ritentato alla
                 // prossima sincronizzazione).
                 if (request.status == SyncStatus.failed && request.errorMessage != null)
@@ -175,6 +184,41 @@ class _FerieAssenzeScreenState extends State<FerieAssenzeScreen> {
       ),
     );
   }
+
+  /// Ferie: arancione in attesa, verde approvata, rossa rifiutata con il
+  /// commento dell'approvatore (richiesta del cliente, 26.11.2026).
+  Widget _approvalChip(AssenzaRequest request) {
+    final status = _statuses[request.localId];
+    if (status == null) {
+      if (request.status == SyncStatus.synced) return const SizedBox.shrink();
+      return _chip('Da inviare', AppColors.textSecondary);
+    }
+    if (status.isApproved) return _chip('Approvata', const Color(0xFF2E7D32));
+    if (status.isRejected) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _chip('Rifiutata', AppColors.danger),
+          if (status.comment.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(status.comment, style: const TextStyle(fontSize: 12, color: AppColors.danger)),
+            ),
+        ],
+      );
+    }
+    final waiting = request.approverName?.isNotEmpty == true && status.approval == 'pendingFirst'
+        ? 'In attesa di approvazione (${request.approverName})'
+        : 'In attesa di approvazione';
+    return _chip(waiting, const Color(0xFFE08A00));
+  }
+
+  Widget _chip(String text, Color color) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+        child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+      );
 
   IconData _iconFor(AssenzaType type) => switch (type) {
         AssenzaType.ferie => Icons.beach_access_outlined,

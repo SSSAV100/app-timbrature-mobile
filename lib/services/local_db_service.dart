@@ -29,7 +29,7 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 11,
+      version: 12,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
@@ -79,6 +79,11 @@ class LocalDbService {
         if (oldVersion < 11) {
           // Mattino / pomeriggio scelto dal dipendente (26.11.2026).
           await db.execute('ALTER TABLE pending_time_entries ADD COLUMN day_part TEXT');
+        }
+        if (oldVersion < 12) {
+          // Ferie con approvazione: responsabile scelto (26.11.2026).
+          await db.execute('ALTER TABLE pending_assenze ADD COLUMN approver_resource_no TEXT');
+          await db.execute('ALTER TABLE pending_assenze ADD COLUMN approver_name TEXT');
         }
       },
     );
@@ -152,6 +157,8 @@ class LocalDbService {
         incident_description TEXT,
         incident_location TEXT,
         attachment_path TEXT,
+        approver_resource_no TEXT,
+        approver_name TEXT,
         status TEXT NOT NULL,
         error_message TEXT
       )

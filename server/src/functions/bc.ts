@@ -20,6 +20,9 @@ const READ_FILTER: Record<string, ((emp: string, res: string) => string) | null>
   materialItems: null,
   companyBranding: null,
   pendingApprovals: null,
+  vacationApprovers: null,
+  vacationApprovals: null,
+  absenceStatuses: (emp) => `employeeNo eq ${odataString(emp)}`,
 };
 
 const WRITE_SETS = new Set([

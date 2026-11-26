@@ -605,3 +605,11 @@ Nell'ordine suggerito dalla roadmap della specifica funzionale:
   `POST /projectAttachments` `{reportId, projectId, fileName, fileBase64}` (firma, foto, PDF per ultimo: BC
   lo salva sul bollettino e lo manda per email al Capo Cantiere).
 
+### Ferie con approvazione (26.11.2026)
+
+- `POST /absenceRequests`: in più `approverResourceNo` (ferie) e `appRequestId` (id locale).
+- `GET /vacationApprovers`: `{id, name}` dei responsabili. `GET /absenceStatuses`: `{appRequestId, approvalStatus
+  (none|pendingFirst|pendingSecond|approved|rejected), decisionComment}`.
+- `GET /vacationApprovals`, `PATCH /vacationDecisions({id})` `{decision, comment}` (If-Match: *), solo login Microsoft.
+- `GET /me`: `apprentice`, `firstVacationDate`; ruolo `approvatoreFerie`.
+

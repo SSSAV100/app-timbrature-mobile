@@ -132,14 +132,18 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final user = await BcApiService.instance.fetchCurrentUser();
       DayRules.current = DayRules.parse(user.dayRules) ?? const DayRules();
+      AppUser.current = user;
       setState(() {
         _currentUser = user;
         _userError = null;
       });
       _loadTodaySummary();
       if (user.canApprove) {
-        final approvals = await BcApiService.instance.fetchPendingApprovals();
-        setState(() => _pendingApprovalsCount = approvals.length);
+        final results = await Future.wait([
+          BcApiService.instance.fetchPendingApprovals().then((l) => l.length).catchError((_) => 0),
+          BcApiService.instance.fetchVacationApprovals().then((l) => l.length).catchError((_) => 0),
+        ]);
+        setState(() => _pendingApprovalsCount = results[0] + results[1]);
       }
     } catch (e, stackTrace) {
       developer.log('fetchCurrentUser fallita', name: 'HomeScreen', error: e, stackTrace: stackTrace);
