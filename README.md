@@ -284,7 +284,7 @@ materiali, foto, nome e firma del cliente. PDF condiviso subito; in coda, in
 quest'ordine:
 
 - `POST /projectReports`: `{reportId (Guid generato dall'app), projectId, taskId, date, startTime, endTime, workDescription, clientName}`.
-- `POST /projectReportMaterials`: `{reportId, projectId, itemNo, quantity}`, solo registrati in BC.
+- `POST /projectReportMaterials`: `{reportId, projectId, description, quantity}` (testo libero dal 26.11.2026), solo registrati in BC.
 - `POST /projectAttachments`: `{projectId, fileName, fileBase64}`: firma, foto e PDF
   negli allegati della commessa.
 
@@ -309,7 +309,7 @@ Sezione Service, su ordini di assistenza standard di BC (vedi
 - `POST /serviceHours`: `{orderNo, itemLineNo, date, workTypeCode, hoursService, hoursSalary, startTime, endTime, note}`.
   `startTime`/`endTime` ("HH:mm:ss"): BC ricava le ore stipendio dagli orari e le divide in mattino/pomeriggio.
   Le ore Service vanno sull'ordine (fattura), le ore stipendio su SwissSalary.
-- `POST /serviceMaterials`: `{orderNo, itemLineNo, itemNo, quantity}`.
+- `POST /serviceMaterials`: `{orderNo, itemLineNo, description, quantity}` (testo libero dal 26.11.2026): riga di tipo Costo sull'ordine con il costo "materiale" della Setup; prezzo dall'ufficio.
 - `POST /serviceAttachments`: `{orderNo, fileName, fileBase64}`, allegato all'ordine (firma, foto, PDF).
 - `GET /workTypes` (`code`, `description`), `GET /materialItems` (`no`, `description`, `unitOfMeasure`).
 - `serviceAssignments.startedAt`: inizio effettivo registrato da BC ("Inizia").

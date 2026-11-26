@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/project.dart';
 import '../models/time_entry.dart';
 import 'local_files.dart';
+import '../widgets/material_sheet.dart';
 
 /// Bollettino facoltativo delle ore di progetto, firmato dal cliente:
 /// condiviso subito e allegato alla commessa in BC (projectAttachments).
@@ -38,8 +39,7 @@ class ProjectReportPdf {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(companyName,
-                style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            pw.Text(companyName, style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
             pw.Text('Bollettino di lavoro', style: const pw.TextStyle(fontSize: 14)),
             pw.Divider(height: 24),
@@ -52,7 +52,8 @@ class ProjectReportPdf {
               for (final e in hours)
                 pw.Text('${e.startTime ?? ''}–${e.endTime ?? ''} · ${taskName(e.taskId)} · '
                     '${e.hoursWorked.toStringAsFixed(2)} h'),
-              pw.Text('Totale: ${total.toStringAsFixed(2)} h', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Totale: ${total.toStringAsFixed(2)} h',
+                  style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
             ],
             pw.SizedBox(height: 16),
             pw.Text('Lavoro svolto', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
@@ -62,7 +63,7 @@ class ProjectReportPdf {
               pw.SizedBox(height: 16),
               pw.Text('Materiale', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
-              for (final m in materials) pw.Text('${m['quantity']} × ${m['itemNo']} ${m['_itemDescription'] ?? ''}'),
+              for (final m in materials) pw.Text(MaterialSheet.label(m)),
             ],
             pw.Spacer(),
             pw.Text('Firma del cliente${clientName.isEmpty ? '' : ' ($clientName)'}'),

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'service_assignment.dart' show ServiceState;
 import 'timesheet_entry.dart' show SyncStatus;
+import '../widgets/material_sheet.dart';
 
 /// Tipo di azione su un intervento, ciascuna con il suo endpoint BC.
 enum ServiceActionKind {
@@ -66,12 +67,10 @@ class ServiceAction {
           },
         ServiceActionKind.hours =>
           'Ore${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
-        ServiceActionKind.material =>
-          'Materiale: ${payload['quantity']} × ${payload['itemNo']} ${payload['_itemDescription'] ?? ''}'.trim(),
+        ServiceActionKind.material => 'Materiale: ${MaterialSheet.label(payload)}',
         ServiceActionKind.attachment || ServiceActionKind.projectAttachment => 'Allegato: ${payload['fileName']}',
         ServiceActionKind.projectReport => 'Bollettino ${payload['date']}',
-        ServiceActionKind.projectMaterial =>
-          'Materiale: ${payload['quantity']} × ${payload['itemNo']} ${payload['_itemDescription'] ?? ''}'.trim(),
+        ServiceActionKind.projectMaterial => 'Materiale: ${MaterialSheet.label(payload)}',
       };
 
   // " 07:00–12:00" dagli orari "HH:mm:ss" del payload, se presenti.

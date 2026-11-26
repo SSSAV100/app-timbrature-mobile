@@ -138,15 +138,18 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
       for (final m in _materials) {
         await _queue(ServiceActionKind.projectMaterial, {'reportId': reportId, ...m});
       }
-      await _queue(ServiceActionKind.projectAttachment, {'fileName': 'firma_${day}_$stamp.png'}, filePath: signaturePath);
+      await _queue(ServiceActionKind.projectAttachment, {'fileName': 'firma_${day}_$stamp.png'},
+          filePath: signaturePath);
       for (var i = 0; i < _photoPaths.length; i++) {
         await _queue(ServiceActionKind.projectAttachment, {'fileName': 'foto_${day}_${i + 1}_$stamp.jpg'},
             filePath: _photoPaths[i]);
       }
-      await _queue(ServiceActionKind.projectAttachment, {'fileName': 'bollettino_${day}_$stamp.pdf'}, filePath: pdf.path);
+      await _queue(ServiceActionKind.projectAttachment, {'fileName': 'bollettino_${day}_$stamp.pdf'},
+          filePath: pdf.path);
       SyncService.instance.syncAll();
 
-      await SharePlus.instance.share(ShareParams(files: [XFile(pdf.path)], subject: 'Bollettino ${_project.description}'));
+      await SharePlus.instance
+          .share(ShareParams(files: [XFile(pdf.path)], subject: 'Bollettino ${_project.description}'));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       _snack('Errore nel bollettino: $e');
@@ -195,7 +198,7 @@ class _ProjectReportScreenState extends State<ProjectReportScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    '${_materials[i]['quantity']} × ${_materials[i]['itemNo']} ${_materials[i]['_itemDescription'] ?? ''}',
+                    MaterialSheet.label(_materials[i]),
                     style: const TextStyle(fontSize: 13),
                   ),
                 ),

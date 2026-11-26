@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import 'local_files.dart';
+import '../widgets/material_sheet.dart';
 
 /// Rapporto di intervento Service firmato dal cliente: condiviso subito col
 /// cliente e allegato all'ordine di assistenza in BC (serviceAttachments).
@@ -37,8 +38,7 @@ class ServiceReportPdf {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(companyName,
-                style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            pw.Text(companyName, style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
             pw.Text('Rapporto di intervento ${assignment.orderNo}', style: const pw.TextStyle(fontSize: 14)),
             pw.Divider(height: 24),
@@ -64,8 +64,7 @@ class ServiceReportPdf {
               pw.SizedBox(height: 16),
               pw.Text('Materiale', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
-              for (final m in materials)
-                pw.Text('${m.payload['quantity']} × ${m.payload['itemNo']} ${m.payload['_itemDescription'] ?? ''}'),
+              for (final m in materials) pw.Text(MaterialSheet.label(m.payload)),
             ],
             pw.Spacer(),
             pw.Text('Firma del cliente${clientName.isEmpty ? '' : ' ($clientName)'}'),
@@ -77,7 +76,8 @@ class ServiceReportPdf {
     );
 
     final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'bollettini', 'rapporto_${assignment.orderNo}_${DateTime.now().millisecondsSinceEpoch}.pdf'));
+    final file = File(
+        p.join(dir.path, 'bollettini', 'rapporto_${assignment.orderNo}_${DateTime.now().millisecondsSinceEpoch}.pdf'));
     await file.parent.create(recursive: true);
     await file.writeAsBytes(await doc.save(), flush: true);
     return file;
