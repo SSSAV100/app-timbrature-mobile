@@ -460,20 +460,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Prossimo intervento, compatto: intestazione con il conteggio di oggi
+  /// (tocca per l'elenco), quando, cliente e indirizzo con Naviga.
   Widget _buildNextServiceCard() {
     const accent = Color(0xFF0E8C78);
     final next = _nextService;
     final todayCount = _servicesToday ?? 0;
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => _open(next == null ? const ServiceListScreen() : ServiceDetailScreen(assignment: next)),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
           ),
           child: Column(
@@ -481,82 +483,78 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
-                    child: const Icon(Icons.build_outlined, size: 18, color: accent),
-                  ),
-                  const SizedBox(width: 10),
+                  const Icon(Icons.build_outlined, size: 16, color: accent),
+                  const SizedBox(width: 6),
                   const Expanded(
                     child: Text('Prossimo intervento',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accent)),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent)),
                   ),
-                  Text(
-                    todayCount == 1 ? '1 da fare oggi' : '$todayCount da fare oggi',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  InkWell(
+                    onTap: () => _open(const ServiceListScreen()),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Text(
+                        '$todayCount da fare oggi ›',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               if (next == null)
-                Text(
-                  _nextServiceLoaded ? 'Nessun intervento in programma.' : 'Caricamento…',
-                  style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    _nextServiceLoaded ? 'Nessun intervento in programma.' : 'Caricamento…',
+                    style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
                 )
-              else ...[
-                Text(
-                  _nextServiceWhenLong(next),
-                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  next.customerName.isEmpty ? next.orderNo : next.customerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                ),
-                if (next.orderDescription.isNotEmpty)
-                  Text(next.orderDescription,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
-                if (next.fullAddress.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.place_outlined, size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(next.fullAddress,
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _nextServiceWhenLong(next),
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            [
+                              next.customerName.isEmpty ? next.orderNo : next.customerName,
+                              if (next.orderDescription.isNotEmpty) next.orderDescription,
+                            ].join(' · '),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                          if (next.fullAddress.isNotEmpty)
+                            Text(next.fullAddress,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
+                    ),
                     if (next.fullAddress.isNotEmpty)
-                      OutlinedButton.icon(
+                      IconButton(
+                        tooltip: 'Naviga',
                         onPressed: () => launchUrl(
                             Uri.parse('https://maps.apple.com/?q=${Uri.encodeComponent(next.fullAddress)}'),
                             mode: LaunchMode.externalApplication),
-                        icon: const Icon(Icons.navigation_outlined, size: 18),
-                        label: const Text('Naviga'),
-                        style: OutlinedButton.styleFrom(foregroundColor: accent),
+                        icon: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+                          child: const Icon(Icons.navigation_outlined, color: accent, size: 20),
+                        ),
                       ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => _open(const ServiceListScreen()),
-                      style: TextButton.styleFrom(foregroundColor: accent),
-                      child: const Text('Tutti gli interventi'),
-                    ),
                   ],
                 ),
-              ],
             ],
           ),
         ),
