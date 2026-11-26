@@ -332,3 +332,67 @@ class _LunchBreakSheetState extends State<LunchBreakSheet> {
     );
   }
 }
+
+/// Riga "Pausa pranzo" del giorno indicato, da toccare per inserirla o
+/// cambiarla. Usata in Interventi (in Ore progetti c'è la sua riga).
+class LunchBreakRow extends StatefulWidget {
+  final DateTime date;
+  const LunchBreakRow({super.key, required this.date});
+
+  @override
+  State<LunchBreakRow> createState() => _LunchBreakRowState();
+}
+
+class _LunchBreakRowState extends State<LunchBreakRow> {
+  DaySlot? _lunch;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final plan = await DayPlan.load(widget.date);
+    if (mounted) setState(() => _lunch = plan.lunch);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lunch = _lunch;
+    return InkWell(
+      onTap: () async {
+        if (await LunchBreakSheet.open(context, widget.date)) await _load();
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border, width: 0.6),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.restaurant_outlined, size: 20, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('Pausa pranzo di oggi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            ),
+            Text(
+              lunch == null ? 'Aggiungi' : '${_f(lunch.start)}–${_f(lunch.end)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: lunch == null ? AppColors.primary : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

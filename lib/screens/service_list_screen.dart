@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/day_parts.dart';
 import '../core/theme.dart';
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
@@ -92,6 +93,9 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
           children: [
+            // Pausa pranzo anche per chi fa solo Service (26.11.2026).
+            LunchBreakRow(date: DateTime.now()),
+            const SizedBox(height: 12),
             if (_message != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
