@@ -177,6 +177,18 @@ class LocalDbService {
 
   // --- Azioni sugli interventi Service ---
 
+  /// Tutte le azioni dei tipi indicati (inviate o in coda).
+  Future<List<ServiceAction>> getServiceActionsByKinds(List<ServiceActionKind> kinds) async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_service_actions',
+      where: 'kind IN (${List.filled(kinds.length, '?').join(',')})',
+      whereArgs: kinds.map((k) => k.name).toList(),
+      orderBy: 'created_at',
+    );
+    return rows.map(ServiceAction.fromDbMap).toList();
+  }
+
   /// Azioni dei tipi indicati con la data [day] ("yyyy-MM-dd") nel payload,
   /// inviate o in coda, in ordine di inserimento (ore Service e pause pranzo
   /// della giornata, vedi DayPlan).

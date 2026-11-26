@@ -21,6 +21,7 @@ import 'approvals_screen.dart';
 import 'ferie_assenze_screen.dart';
 import 'login_screen.dart';
 import 'note_spese_screen.dart';
+import 'project_report_screen.dart';
 import 'ore_progetti_screen.dart';
 import 'service_detail_screen.dart';
 import 'service_list_screen.dart';
@@ -271,6 +272,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'Ore progetti',
                     subtitle: 'Registra le ore di lavoro',
                     onTap: () => _open(const OreProgettiScreen()),
+                  ),
+                  ModuleTile(
+                    icon: Icons.assignment_outlined,
+                    color: const Color(0xFF0B7A9C),
+                    label: 'Bollettino a regia',
+                    subtitle: 'Materiale e manodopera',
+                    onTap: () => _open(const ProjectReportsScreen()),
                   ),
                   // Sezione Service: interventi assegnati dalla Dispatch Board,
                   // solo per chi ha il modulo (flag "Tecnico Service" in BC).

@@ -594,3 +594,14 @@ Nell'ordine suggerito dalla roadmap della specifica funzionale:
   dalle|fine pomeriggio|ore max pomeriggio" (es. "12:30|5.5|12:00|14:00|1|13:00|23:59|5.5").
 - Controlli bloccanti uguali in app (`lib/core/day_parts.dart`) e in BC (`SS Work Time Mgt`).
 
+### Bollettino a regia (26.11.2026)
+
+- Mattonella "Bollettino a regia" nella home (`ProjectReportsScreen`): elenco dei bollettini fatti dal
+  telefono e "Nuovo bollettino" (progetto, WBS, giorno, descrizione intervento, materiale, manodopera,
+  foto, firma).
+- `POST /projectReports` `{reportId, projectId, taskId, date, workDescription, clientName}`;
+  `POST /projectReportMaterials` `{reportId, projectId, description, quantity}`;
+  `POST /projectReportLabor` `{reportId, projectId, workerName, hours}`;
+  `POST /projectAttachments` `{reportId, projectId, fileName, fileBase64}` (firma, foto, PDF per ultimo: BC
+  lo salva sul bollettino e lo manda per email al Capo Cantiere).
+

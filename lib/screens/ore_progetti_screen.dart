@@ -7,16 +7,13 @@ import '../core/theme.dart';
 import '../core/work_time.dart';
 import '../models/project.dart';
 import '../models/project_task.dart';
-import '../models/service_action.dart';
 import '../models/time_entry.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
 import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/location_service.dart';
 import '../services/sync_service.dart';
-import '../widgets/sync_status_dot.dart';
 import '../widgets/time_entry_tile.dart';
-import 'project_report_screen.dart';
 
 class OreProgettiScreen extends StatefulWidget {
   const OreProgettiScreen({super.key});
@@ -30,10 +27,8 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   List<Project> _projects = [];
   List<TimeEntry> _entries = [];
   DaySlot? _lunch; // pausa pranzo del giorno (inserita da questo telefono)
-  List<ServiceAction> _pendingReports = [];
 
   /// Voci ore che hanno già un bollettino (inviato o in coda).
-  Set<String> _reportedEntryIds = {};
   bool _isLoading = true;
   String? _loadError;
 
@@ -55,21 +50,11 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
       final results = await Future.wait([
         BcApiService.instance.fetchAssignedProjects(),
         LocalDbService.instance.getTimeEntriesForDate(_selectedDate),
-        // Bollettini (e loro allegati) non ancora arrivati in BC.
-        LocalDbService.instance.getPendingServiceActions().then((actions) => actions
-            .where((a) =>
-                a.kind == ServiceActionKind.projectReport ||
-                a.kind == ServiceActionKind.projectMaterial ||
-                a.kind == ServiceActionKind.projectAttachment)
-            .toList()),
-        _loadReportedEntryIds(),
       ]);
 
       setState(() {
         _projects = results[0] as List<Project>;
         _entries = results[1] as List<TimeEntry>;
-        _pendingReports = results[2] as List<ServiceAction>;
-        _reportedEntryIds = results[3] as Set<String>;
       });
       await _loadLunch();
     } catch (_) {
@@ -139,32 +124,6 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
 
   Future<void> _editLunch() async {
     if (await LunchBreakSheet.open(context, _selectedDate)) await _loadLunch();
-  }
-
-  Future<Set<String>> _loadReportedEntryIds() async {
-    final ids = <String>{};
-    final projectIds = (await LocalDbService.instance.getTimeEntriesForDate(_selectedDate)).map((e) => e.projectId).toSet();
-    for (final projectId in projectIds) {
-      final actions = await LocalDbService.instance.getServiceActionsFor(projectId, 0);
-      for (final a in actions.where((a) => a.kind == ServiceActionKind.projectReport)) {
-        final id = a.payload['_entryId'] as String?;
-        if (id != null) ids.add(id);
-      }
-    }
-    return ids;
-  }
-
-  /// Bollettino facoltativo della singola voce ore.
-  Future<void> _openProjectReport(TimeEntry entry) async {
-    final project = _projectFor(entry.projectId);
-    if (project == null) return;
-    final sent = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ProjectReportScreen(project: project, entry: entry),
-    ));
-    if (sent == true) {
-      await _loadEverything();
-      SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
-    }
   }
 
   Future<void> _deleteEntry(TimeEntry entry) async {
@@ -239,39 +198,8 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
                   entry: entry,
                   project: _projectFor(entry.projectId),
                   onDelete: () => _deleteEntry(entry),
-                  hasReport: _reportedEntryIds.contains(entry.localId),
-                  onReport: _projectFor(entry.projectId) == null ? null : () => _openProjectReport(entry),
                 ),
               ),
-            if (_pendingReports.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text('Bollettini in invio', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-              const SizedBox(height: 6),
-              for (final a in _pendingReports)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SyncStatusDot(status: a.status),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${a.orderNo} · ${a.summary}', style: const TextStyle(fontSize: 12)),
-                            if (a.status == SyncStatus.failed && a.errorMessage != null)
-                              Text(a.errorMessage!,
-                                  style: const TextStyle(fontSize: 11, color: AppColors.danger),
-                                  maxLines: 4,
-                                  overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
           ],
         ),
       ),

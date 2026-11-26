@@ -8,69 +8,65 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/project.dart';
-import '../models/time_entry.dart';
 import 'local_files.dart';
 import '../widgets/material_sheet.dart';
 
-/// Bollettino facoltativo delle ore di progetto, firmato dal cliente:
-/// condiviso subito e allegato alla commessa in BC (projectAttachments).
+/// PDF del bollettino a regia (richiesta del cliente, 26.11.2026): commessa,
+/// WBS, giorno, descrizione intervento, materiale, manodopera e firma del
+/// cliente. Condiviso subito, allegato alla commessa e mandato da BC al
+/// Capo Cantiere.
 class ProjectReportPdf {
   ProjectReportPdf._();
 
   static Future<File> generate({
     required Project project,
+    required String taskLabel,
     required DateTime date,
-    required List<TimeEntry> hours,
     required List<Map<String, dynamic>> materials,
+    required List<Map<String, dynamic>> labor,
     required String workDone,
     required String clientName,
     required Uint8List signaturePng,
   }) async {
     final companyName = await LocalFiles.companyName();
     final doc = pw.Document();
-    String taskName(String? id) =>
-        project.tasks.where((t) => t.id == id).map((t) => t.description).firstOrNull ?? (id ?? '');
-    final total = hours.fold(0.0, (sum, e) => sum + e.hoursWorked);
+    final laborTotal = labor.fold(0.0, (sum, l) => sum + ((l['hours'] as num?)?.toDouble() ?? 0));
+    String h(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(companyName, style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 4),
-            pw.Text('Bollettino di lavoro', style: const pw.TextStyle(fontSize: 14)),
-            pw.Divider(height: 24),
-            _row('Commessa', '${project.id} · ${project.description}'),
-            _row('Data', DateFormat('dd.MM.yyyy').format(date)),
-            if (hours.isNotEmpty) ...[
-              pw.SizedBox(height: 16),
-              pw.Text('Ore', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              for (final e in hours)
-                pw.Text('${e.startTime ?? ''}–${e.endTime ?? ''} · ${taskName(e.taskId)} · '
-                    '${e.hoursWorked.toStringAsFixed(2)} h'),
-              pw.Text('Totale: ${total.toStringAsFixed(2)} h',
-                  style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ],
+        build: (context) => [
+          pw.Text(companyName, style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 4),
+          pw.Text('Bollettino a regia', style: const pw.TextStyle(fontSize: 14)),
+          pw.Divider(height: 24),
+          _row('Commessa', '${project.id} · ${project.description}'),
+          if (taskLabel.isNotEmpty) _row('WBS', taskLabel),
+          _row('Data', DateFormat('dd.MM.yyyy').format(date)),
+          pw.SizedBox(height: 16),
+          pw.Text('Descrizione intervento', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 4),
+          pw.Text(workDone),
+          if (materials.isNotEmpty) ...[
             pw.SizedBox(height: 16),
-            pw.Text('Lavoro svolto', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Materiale', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text(workDone),
-            if (materials.isNotEmpty) ...[
-              pw.SizedBox(height: 16),
-              pw.Text('Materiale', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              for (final m in materials) pw.Text(MaterialSheet.label(m)),
-            ],
-            pw.Spacer(),
-            pw.Text('Firma del cliente${clientName.isEmpty ? '' : ' ($clientName)'}'),
-            pw.SizedBox(height: 8),
-            pw.Image(pw.MemoryImage(signaturePng), height: 80),
+            for (final m in materials) pw.Text(MaterialSheet.label(m)),
           ],
-        ),
+          if (labor.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            pw.Text('Manodopera', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            for (final l in labor) pw.Text('${l['workerName']} · ${h((l['hours'] as num).toDouble())} h'),
+            pw.Text('Totale: ${h(laborTotal)} h', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          ],
+          pw.SizedBox(height: 32),
+          pw.Text('Firma del cliente${clientName.isEmpty ? '' : ' ($clientName)'}'),
+          pw.SizedBox(height: 8),
+          pw.Image(pw.MemoryImage(signaturePng), height: 80),
+        ],
       ),
     );
 

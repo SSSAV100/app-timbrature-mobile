@@ -35,6 +35,7 @@ const WRITE_SETS = new Set([
   'projectReportMaterials',
   'projectAttachments',
   'lunchBreaks',
+  'projectReportLabor',
 ]);
 
 export async function bcProxy(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
