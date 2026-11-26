@@ -26,6 +26,10 @@ class AppUser {
   final String? serviceMarkup;
   final String? serviceReportTerms;
 
+  /// Profilo app dalla scheda dipendente: operaioProgetti,
+  /// operaioProgettiService, tecnico, admin; vuoto = come prima.
+  final String profile;
+
   /// Ultimo profilo letto da BC (home), per i controlli delle altre schermate.
   static AppUser? current;
 
@@ -39,6 +43,7 @@ class AppUser {
     this.firstVacationDate,
     this.serviceMarkup,
     this.serviceReportTerms,
+    this.profile = '',
   });
 
   bool get hasServiceModule => modules.contains('service');
@@ -53,7 +58,18 @@ class AppUser {
 
   /// True se l'utente ha almeno un ruolo che dà accesso alla schermata
   /// Approvazioni nell'app.
-  bool get canApprove => isResponsabileCantiere || isVacationApprover;
+  bool get isAdmin => roles.contains('admin');
+
+  bool get canApprove => isResponsabileCantiere || isVacationApprover || isAdmin;
+
+  /// Mattonella Approvazioni (richiesta del cliente, 26.11.2026): tecnico
+  /// (capo cantiere) e admin sempre, operaio progetti mai, operaio progetti e
+  /// Service (o profilo vuoto) solo se è approvatore.
+  bool get showsApprovals => switch (profile) {
+        'tecnico' || 'admin' => true,
+        'operaioProgetti' => false,
+        _ => canApprove,
+      };
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     // "roles" arriva da BC come stringa con valori separati da virgola
@@ -81,6 +97,7 @@ class AppUser {
       firstVacationDate: DateTime.tryParse(json['firstVacationDate'] as String? ?? ''),
       serviceMarkup: json['serviceMarkup'] as String?,
       serviceReportTerms: json['serviceReportTerms'] as String?,
+      profile: json['profile'] as String? ?? '',
     );
   }
 }

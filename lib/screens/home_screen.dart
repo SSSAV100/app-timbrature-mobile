@@ -138,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _userError = null;
       });
       _loadTodaySummary();
-      if (user.canApprove) {
+      if (user.showsApprovals) {
         final results = await Future.wait([
           BcApiService.instance.fetchPendingApprovals().then((l) => l.length).catchError((_) => 0),
           BcApiService.instance.fetchVacationApprovals().then((l) => l.length).catchError((_) => 0),
@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       subtitle: 'Spese con ricevuta',
                       onTap: () => _open(const NoteSpeseScreen()),
                     ),
-                  if (_currentUser?.canApprove == true)
+                  if (_currentUser?.showsApprovals == true)
                     ModuleTile(
                       icon: Icons.fact_check_outlined,
                       color: const Color(0xFFC98A0A),
