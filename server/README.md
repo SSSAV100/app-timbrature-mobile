@@ -50,6 +50,10 @@ partner sono per uso interno, sviluppo e demo.
 4. **Setup App Timbrature** → *ID app server di login* = appId del server (per società!).
 5. Aggiungere il cliente a `CUSTOMERS` nella Function: codice azienda, tenant, ambiente, società.
 6. Su ogni operaio: **Nome utente app** + **Imposta password app**. Serve anche la **Risorsa**: di norma quella della scheda dipendente BC, collegata da SwissSalary ("Resource Connection" in Setup Payroll); in alternativa il campo "Risorsa (ripiego)" della sezione App Timbrature. Senza risorsa le ore restano in "Errore Registrazione" e il Service non mostra interventi.
+7. Bollettino a regia: un **account email** in BC (scenario predefinito), il **Capo Cantiere** sulle
+   commesse con l'email in Setup utenti e, nelle sandbox, **"Consenti richieste HttpClient"** sull'estensione
+   del connettore email (es. "Email - Outlook REST API", da Gestione estensioni → Configura). Senza, il
+   bollettino arriva ma l'email resta in "Errore email" (provato il 26.11.2026).
 7. Licenze BC per gli operai: da chiarire con SwissSalary o con Microsoft (multiplexing).
 
 ## Verifica rapida
