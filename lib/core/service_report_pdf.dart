@@ -11,6 +11,7 @@ import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import 'local_files.dart';
 import '../widgets/material_sheet.dart';
+import 'service_markup.dart';
 
 /// Rapporto di intervento Service firmato dal cliente: condiviso subito col
 /// cliente e allegato all'ordine di assistenza in BC (serviceAttachments).
@@ -24,6 +25,7 @@ class ServiceReportPdf {
     required String workDone,
     required String clientName,
     required Uint8List signaturePng,
+    String terms = '',
   }) async {
     final companyName = await LocalFiles.companyName();
     final doc = pw.Document();
@@ -58,7 +60,7 @@ class ServiceReportPdf {
               for (final h in hours)
                 pw.Text('${h.payload['date']}'
                     '${h.payload['startTime'] != null ? ' ${(h.payload['startTime'] as String).substring(0, 5)}–${(h.payload['endTime'] as String).substring(0, 5)}' : ''}'
-                    ' · ${h.payload['workTypeCode']} · ${h.payload['hoursService']} h'),
+                    ' · ${_h(ServiceMarkup.apply((h.payload['hoursService'] as num? ?? 0).toDouble()))} h'),
             ],
             if (materials.isNotEmpty) ...[
               pw.SizedBox(height: 16),
@@ -66,7 +68,18 @@ class ServiceReportPdf {
               pw.SizedBox(height: 4),
               for (final m in materials) pw.Text(MaterialSheet.label(m.payload)),
             ],
+            if (assignment.travelFeeAmount > 0) ...[
+              pw.SizedBox(height: 16),
+              pw.Text('Trasferta', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              pw.Text('${assignment.travelFeeDescription.isEmpty ? 'Trasferta zona ${assignment.zoneCode}' : assignment.travelFeeDescription}'
+                  ': CHF ${assignment.travelFeeAmount.toStringAsFixed(2)}'),
+            ],
             pw.Spacer(),
+            if (terms.isNotEmpty) ...[
+              pw.Text(terms, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800)),
+              pw.SizedBox(height: 8),
+            ],
             pw.Text('Firma del cliente${clientName.isEmpty ? '' : ' ($clientName)'}'),
             pw.SizedBox(height: 8),
             pw.Image(pw.MemoryImage(signaturePng), height: 80),
@@ -93,4 +106,6 @@ class ServiceReportPdf {
           ],
         ),
       );
+
+  static String _h(double v) => v.toStringAsFixed(2);
 }

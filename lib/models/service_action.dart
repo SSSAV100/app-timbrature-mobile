@@ -69,7 +69,7 @@ class ServiceAction {
             _ => 'Da riprogrammare',
           },
         ServiceActionKind.hours =>
-          'Ore${payload['dayPart'] == null ? '' : ' ${payload['dayPart']}'}${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
+          'Ore${payload['dayPart'] == null ? '' : ' ${payload['dayPart']}'}${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio',
         ServiceActionKind.material => 'Materiale: ${MaterialSheet.label(payload)}',
         ServiceActionKind.attachment || ServiceActionKind.projectAttachment => 'Allegato: ${payload['fileName']}',
         ServiceActionKind.projectReport => 'Bollettino a regia ${payload['date']}',

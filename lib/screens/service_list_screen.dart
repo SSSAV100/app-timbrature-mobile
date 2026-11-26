@@ -169,12 +169,23 @@ class _AssignmentTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    [
-                      if (assignment.plannedTimeRange != null) assignment.plannedTimeRange!,
-                      assignment.customerName.isEmpty ? assignment.orderNo : assignment.customerName,
-                    ].join('  ·  '),
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          [
+                            if (assignment.plannedTimeRange != null) assignment.plannedTimeRange!,
+                            assignment.customerName.isEmpty ? assignment.orderNo : assignment.customerName,
+                          ].join('  ·  '),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      // Note dell'ufficio per il tecnico: da leggere nel dettaglio.
+                      if (assignment.technicianNotes.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.danger),
+                      ],
+                    ],
                   ),
                   if (assignment.orderDescription.isNotEmpty)
                     Text(assignment.orderDescription, style: const TextStyle(fontSize: 13)),

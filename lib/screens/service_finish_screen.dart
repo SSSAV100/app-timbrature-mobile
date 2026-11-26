@@ -10,11 +10,12 @@ import 'package:uuid/uuid.dart';
 import '../core/local_files.dart';
 import '../core/service_report_pdf.dart';
 import '../core/day_parts.dart';
+import '../core/service_markup.dart';
 import '../core/theme.dart';
+import '../models/app_user.dart';
 import '../core/work_time.dart';
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
-import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/location_service.dart';
 import 'signature_pad_screen.dart';
@@ -53,12 +54,17 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
   bool _serviceEdited = false;
   bool _registerHours = true;
   late DayPart _part = DayRules.current.suggestedPart(DateTime.now());
-  List<WorkType> _workTypes = [];
-  WorkType? _workType;
   DateTime? _startedAt;
   double _alreadyEnteredHours = 0;
 
   ServiceAssignment get _a => widget.assignment;
+
+  String get _terms {
+    final fromBc = AppUser.current?.serviceReportTerms ?? '';
+    return fromBc.isNotEmpty
+        ? fromBc
+        : 'Firmando, il cliente conferma il lavoro svolto e accetta le condizioni generali e il costo della trasferta indicato.';
+  }
 
   @override
   void initState() {
@@ -85,16 +91,6 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
     _end = TimeOfDay.fromDateTime(now);
     _syncServiceHours();
 
-    BcApiService.instance.fetchWorkTypes().then((types) {
-      if (!mounted) return;
-      setState(() {
-        _workTypes = types;
-        _workType = types.isNotEmpty ? types.first : null;
-      });
-    }).catchError((Object _) {
-      // Senza tipi lavoro (offline, mai letti) si chiude senza ore proposte.
-      if (mounted) setState(() => _registerHours = false);
-    });
   }
 
   void _syncServiceHours() {
@@ -161,10 +157,6 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
     final hoursService = _parse(_hoursServiceController);
     final hoursSalary = WorkTime.hoursBetween(_start, _end);
     if (_registerHours) {
-      if (_workType == null) {
-        _snack('Scegli il tipo lavoro delle ore.');
-        return;
-      }
       if (hoursSalary == null) {
         _snack('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
         return;
@@ -199,7 +191,6 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
       if (_registerHours) {
         final hoursPayload = <String, dynamic>{
           'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-          'workTypeCode': _workType!.code,
           'hoursService': hoursService,
           'hoursSalary': hoursSalary,
           'startTime': WorkTime.toBc(_start!),
@@ -224,6 +215,7 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
         workDone: workDone,
         clientName: clientName,
         signaturePng: _signature!,
+        terms: _terms,
       );
 
       await _queue(ServiceActionKind.attachment, {'fileName': 'firma_cliente_$stamp.png'}, filePath: signaturePath);
@@ -297,16 +289,6 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
             onChanged: (v) => setState(() => _registerHours = v),
           ),
           if (_registerHours) ...[
-            DropdownButtonFormField<WorkType>(
-              initialValue: _workType,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Tipo lavoro'),
-              items: _workTypes
-                  .map((t) => DropdownMenuItem(value: t, child: Text('${t.code} · ${t.description}')))
-                  .toList(),
-              onChanged: (t) => setState(() => _workType = t),
-            ),
-            const SizedBox(height: 8),
             DayPartSelector(value: _part, onChanged: (p) => setState(() => _part = p)),
             const SizedBox(height: 8),
             TimeRangeFields(
@@ -325,12 +307,20 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
             TextField(
               controller: _hoursServiceController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => _serviceEdited = true,
+              onChanged: (_) => setState(() => _serviceEdited = true),
               decoration: const InputDecoration(
                 labelText: 'Ore Service',
-                helperText: 'Da fatturare al cliente (le ore stipendio sono Dalle-Alle)',
+                helperText: 'Da fatturare al cliente',
               ),
             ),
+            if ((double.tryParse(_hoursServiceController.text.replaceAll(',', '.')) ?? 0) > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  ServiceMarkup.describe(double.parse(_hoursServiceController.text.replaceAll(',', '.'))),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
           ],
         ],
       ),
@@ -390,12 +380,42 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
               ),
             ],
           ),
+          // Trasferta della zona: il cliente la vede e la firma (26.11.2026).
+          if (_a.travelFeeAmount > 0) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_car_outlined, size: 20, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _a.travelFeeDescription.isEmpty ? 'Trasferta zona ${_a.zoneCode}' : _a.travelFeeDescription,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  Text('CHF ${_a.travelFeeAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           TextField(
             controller: _clientNameController,
             decoration: const InputDecoration(labelText: 'Nome di chi firma'),
           ),
           const SizedBox(height: 12),
+          // Condizioni accettate con la firma (testo dalla Setup di BC).
+          Text(_terms, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
           InkWell(
             onTap: _sign,
             borderRadius: BorderRadius.circular(12),

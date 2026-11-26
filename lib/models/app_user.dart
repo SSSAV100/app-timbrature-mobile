@@ -22,6 +22,10 @@ class AppUser {
   /// Ferie: primo giorno chiedibile (preavviso in giorni lavorativi).
   final DateTime? firstVacationDate;
 
+  /// Service: maggiorazione ore da fatturare ("10|5") e testo prima della firma.
+  final String? serviceMarkup;
+  final String? serviceReportTerms;
+
   /// Ultimo profilo letto da BC (home), per i controlli delle altre schermate.
   static AppUser? current;
 
@@ -33,6 +37,8 @@ class AppUser {
     this.dayRules,
     this.apprentice = false,
     this.firstVacationDate,
+    this.serviceMarkup,
+    this.serviceReportTerms,
   });
 
   bool get hasServiceModule => modules.contains('service');
@@ -73,6 +79,8 @@ class AppUser {
       dayRules: json['dayRules'] as String?,
       apprentice: json['apprentice'] as bool? ?? false,
       firstVacationDate: DateTime.tryParse(json['firstVacationDate'] as String? ?? ''),
+      serviceMarkup: json['serviceMarkup'] as String?,
+      serviceReportTerms: json['serviceReportTerms'] as String?,
     );
   }
 }

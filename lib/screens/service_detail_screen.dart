@@ -4,12 +4,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/day_parts.dart';
+import '../core/service_markup.dart';
 import '../core/theme.dart';
 import '../core/work_time.dart';
 import '../models/service_action.dart';
 import '../models/service_assignment.dart';
 import '../models/timesheet_entry.dart' show SyncStatus;
-import '../services/bc_api_service.dart';
 import '../services/local_db_service.dart';
 import '../services/location_service.dart';
 import '../services/sync_service.dart';
@@ -73,10 +73,32 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     SyncService.instance.syncAll().then((_) => _loadActions());
   }
 
-  Future<void> _start() => _queue(ServiceActionKind.event, {
-        'eventType': 'start',
-        'occurredAt': DateTime.now().toUtc().toIso8601String(),
-      });
+  /// Inizia dal pulsante: il tecnico conferma o corregge l'ora di inizio.
+  /// BC tiene il momento del tocco ("Primo Inizia") e usa l'ora corretta
+  /// come inizio valido (26.11.2026).
+  Future<void> _startWithTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      helpText: 'Ora di inizio intervento',
+      confirmText: 'Inizia',
+      builder: (context, child) =>
+          MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),
+    );
+    if (picked == null) return;
+    await _start(effective: picked);
+  }
+
+  Future<void> _start({TimeOfDay? effective}) {
+    final now = DateTime.now();
+    final time = effective ?? TimeOfDay.fromDateTime(now);
+    return _queue(ServiceActionKind.event, {
+      'eventType': 'start',
+      'occurredAt': now.toUtc().toIso8601String(),
+      'effectiveDate': DateFormat('yyyy-MM-dd').format(now),
+      'effectiveTime': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00',
+    });
+  }
 
   /// Inizia automatico: ore, materiale e chiusura su un intervento non
   /// ancora iniziato mettono prima in coda l'inizio, così BC ha comunque
@@ -90,7 +112,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     final note = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Da riprogrammare'),
+        title: const Text('Termina e riprogramma'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -203,11 +225,41 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 child: Text('In attesa di conferma da Business Central',
                     style: TextStyle(fontSize: 11, color: Colors.orange)),
               ),
+            // Note dell'ufficio per il tecnico, in evidenza (26.11.2026).
+            if (_a.technicianNotes.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.danger, width: 1.2),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_a.technicianNotes,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.danger)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             if (_a.fullAddress.isNotEmpty)
               _InfoRow(icon: Icons.place_outlined, text: _a.fullAddress, onTap: _openMaps),
             if (_a.contactName.isNotEmpty) _InfoRow(icon: Icons.person_outline, text: _a.contactName),
             if (_a.phone.isNotEmpty) _InfoRow(icon: Icons.phone_outlined, text: _a.phone, onTap: _call),
+            if (_a.email.isNotEmpty)
+              _InfoRow(
+                icon: Icons.mail_outline,
+                text: _a.email,
+                onTap: () => launchUrl(Uri.parse('mailto:${_a.email}')),
+              ),
             _InfoRow(
               icon: Icons.event_outlined,
               text: [
@@ -232,7 +284,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               runSpacing: 8,
               children: [
                 if (state == ServiceState.toDo || state == ServiceState.reschedule)
-                  FilledButton.icon(onPressed: _start, icon: const Icon(Icons.play_arrow), label: const Text('Inizia')),
+                  FilledButton.icon(
+                      onPressed: _startWithTime, icon: const Icon(Icons.play_arrow), label: const Text('Inizia')),
                 OutlinedButton.icon(onPressed: _addHours, icon: const Icon(Icons.schedule), label: const Text('Ore')),
                 OutlinedButton.icon(
                     onPressed: _addMaterial, icon: const Icon(Icons.inventory_2_outlined), label: const Text('Materiale')),
@@ -244,10 +297,11 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     style: FilledButton.styleFrom(backgroundColor: AppColors.success),
                   ),
                 if (!isFinished)
-                  TextButton.icon(
+                  FilledButton.icon(
                     onPressed: _reschedule,
-                    icon: const Icon(Icons.event_repeat, color: AppColors.danger),
-                    label: const Text('Da riprogrammare', style: TextStyle(color: AppColors.danger)),
+                    icon: const Icon(Icons.event_repeat),
+                    label: const Text('Termina e riprogramma'),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
                   ),
               ],
             ),
@@ -359,23 +413,7 @@ class _HoursSheetState extends State<_HoursSheet> {
   DateTime _date = DateTime.now();
   late DayPart _part = DayRules.current.suggestedPart(_date);
   bool _lunchMissing = false;
-  List<WorkType> _workTypes = [];
-  WorkType? _workType;
-  String? _loadError;
 
-  @override
-  void initState() {
-    super.initState();
-    BcApiService.instance.fetchWorkTypes().then((types) {
-      if (!mounted) return;
-      setState(() {
-        _workTypes = types;
-        _workType = types.isNotEmpty ? types.first : null;
-      });
-    }).catchError((Object e) {
-      if (mounted) setState(() => _loadError = 'Tipi lavoro non disponibili: $e');
-    });
-  }
 
   @override
   void dispose() {
@@ -409,10 +447,6 @@ class _HoursSheetState extends State<_HoursSheet> {
       _showError('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
       return;
     }
-    if (_workType == null) {
-      _showError('Scegli il tipo lavoro.');
-      return;
-    }
     if (service == null || service < 0) {
       _showError('Le ore Service devono essere un numero (0 se non si fatturano).');
       return;
@@ -429,7 +463,6 @@ class _HoursSheetState extends State<_HoursSheet> {
     if (!mounted) return;
     Navigator.of(context).pop(<String, dynamic>{
       'date': DateFormat('yyyy-MM-dd').format(_date),
-      'workTypeCode': _workType!.code,
       'hoursService': service,
       'hoursSalary': salary,
       'startTime': WorkTime.toBc(_start!),
@@ -469,18 +502,6 @@ class _HoursSheetState extends State<_HoursSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            if (_loadError != null)
-              Text(_loadError!, style: const TextStyle(fontSize: 12, color: AppColors.danger))
-            else
-              DropdownButtonFormField<WorkType>(
-                initialValue: _workType,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Tipo lavoro'),
-                items: _workTypes
-                    .map((t) => DropdownMenuItem(value: t, child: Text('${t.code} · ${t.description}')))
-                    .toList(),
-                onChanged: (t) => setState(() => _workType = t),
-              ),
             const SizedBox(height: 12),
             DayPartSelector(value: _part, onChanged: (p) => setState(() => _part = p)),
             const SizedBox(height: 12),
@@ -499,13 +520,21 @@ class _HoursSheetState extends State<_HoursSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _serviceController,
-              onChanged: (_) => _serviceEdited = true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'Ore Service',
-                helperText: 'Da fatturare al cliente (le ore stipendio sono Dalle-Alle)',
+                helperText: 'Da fatturare al cliente',
               ),
+              onChanged: (_) => setState(() => _serviceEdited = true),
             ),
+            if ((double.tryParse(_serviceController.text.replaceAll(',', '.')) ?? 0) > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  ServiceMarkup.describe(double.parse(_serviceController.text.replaceAll(',', '.'))),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
             const SizedBox(height: 12),
             const SizedBox(height: 12),
             TextField(

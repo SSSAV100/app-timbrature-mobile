@@ -27,6 +27,15 @@ class ServiceAssignment {
   /// Inizio effettivo registrato da BC ("Inizia"), se c'è.
   final DateTime? startedAt;
 
+  final String email;
+
+  /// Note dell'ufficio per il tecnico (in rosso nel dettaglio).
+  final String technicianNotes;
+
+  /// Trasferta della zona, mostrata al cliente prima della firma.
+  final String travelFeeDescription;
+  final double travelFeeAmount;
+
   /// Ora di inizio pianificata dall'ufficio ("HH:mm"), se c'è.
   final String? startingTime;
 
@@ -58,6 +67,10 @@ class ServiceAssignment {
     required this.phone,
     required this.workDescription,
     this.startedAt,
+    this.email = '',
+    this.technicianNotes = '',
+    this.travelFeeDescription = '',
+    this.travelFeeAmount = 0,
     this.startingTime,
     this.finishingTime,
   });
@@ -84,6 +97,10 @@ class ServiceAssignment {
       phone: json['phone'] as String? ?? '',
       workDescription: json['workDescription'] as String? ?? '',
       startedAt: _parseStartedAt(json['startedAt'] as String?),
+      email: json['email'] as String? ?? '',
+      technicianNotes: json['technicianNotes'] as String? ?? '',
+      travelFeeDescription: json['travelFeeDescription'] as String? ?? '',
+      travelFeeAmount: (json['travelFeeAmount'] as num?)?.toDouble() ?? 0,
       startingTime: _parseTime(json['startingTime'] as String?),
       finishingTime: _parseTime(json['finishingTime'] as String?),
     );
