@@ -167,6 +167,7 @@ class BcApiService {
       ServiceActionKind.projectReport => 'projectReports',
       ServiceActionKind.projectMaterial => 'projectReportMaterials',
       ServiceActionKind.projectAttachment => 'projectAttachments',
+      ServiceActionKind.lunchBreak => 'lunchBreaks',
     };
     // BC rifiuta i campi che non conosce: via quelli solo per l'app ("_…") e
     // itemLineNo per gli allegati (sono dell'ordine, non della riga).

@@ -60,7 +60,7 @@ class TimeEntryTile extends StatelessWidget {
                   ),
                 if (entry.startTime != null && entry.endTime != null)
                   Text(
-                    '${entry.startTime} – ${entry.endTime}',
+                    '${entry.dayPart == null ? '' : '${entry.dayPart![0].toUpperCase()}${entry.dayPart!.substring(1)} · '}${entry.startTime} – ${entry.endTime}',
                     style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 if (entry.note != null && entry.note!.isNotEmpty)

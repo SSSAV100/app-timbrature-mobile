@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/day_parts.dart';
 import '../core/theme.dart';
 import '../core/work_time.dart';
 import '../models/service_action.dart';
@@ -356,6 +357,8 @@ class _HoursSheetState extends State<_HoursSheet> {
   bool _serviceEdited = false;
   final _noteController = TextEditingController();
   DateTime _date = DateTime.now();
+  late DayPart _part = DayRules.current.suggestedPart(_date);
+  bool _lunchMissing = false;
   List<WorkType> _workTypes = [];
   WorkType? _workType;
   String? _loadError;
@@ -389,7 +392,16 @@ class _HoursSheetState extends State<_HoursSheet> {
     if (!_serviceEdited && hours != null) _serviceController.text = hours.toString();
   }
 
-  void _save() {
+  Future<void> _addLunch() async {
+    if (await LunchBreakSheet.open(context, _date)) {
+      setState(() {
+        _lunchMissing = false;
+        _error = null;
+      });
+    }
+  }
+
+  Future<void> _save() async {
     final service = _parse(_serviceController);
     // Ore stipendio = tempo lavorato Dalle-Alle (commissione paritetica).
     final salary = WorkTime.hoursBetween(_start, _end);
@@ -405,6 +417,16 @@ class _HoursSheetState extends State<_HoursSheet> {
       _showError('Le ore Service devono essere un numero (0 se non si fatturano).');
       return;
     }
+    // Mattino / pausa / pomeriggio su tutta la giornata (progetti e Service).
+    final plan = await DayPlan.load(_date);
+    var lunchMissing = false;
+    final dayError = plan.check(_part, _start!, _end!, onLunchMissing: () => lunchMissing = true);
+    if (dayError != null) {
+      setState(() => _lunchMissing = lunchMissing);
+      _showError(dayError);
+      return;
+    }
+    if (!mounted) return;
     Navigator.of(context).pop(<String, dynamic>{
       'date': DateFormat('yyyy-MM-dd').format(_date),
       'workTypeCode': _workType!.code,
@@ -412,6 +434,7 @@ class _HoursSheetState extends State<_HoursSheet> {
       'hoursSalary': salary,
       'startTime': WorkTime.toBc(_start!),
       'endTime': WorkTime.toBc(_end!),
+      'dayPart': _part.name,
       if (_noteController.text.trim().isNotEmpty) 'note': _noteController.text.trim(),
     });
   }
@@ -459,6 +482,8 @@ class _HoursSheetState extends State<_HoursSheet> {
                 onChanged: (t) => setState(() => _workType = t),
               ),
             const SizedBox(height: 12),
+            DayPartSelector(value: _part, onChanged: (p) => setState(() => _part = p)),
+            const SizedBox(height: 12),
             TimeRangeFields(
               start: _start,
               end: _end,
@@ -492,6 +517,15 @@ class _HoursSheetState extends State<_HoursSheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(_error!, style: const TextStyle(fontSize: 13, color: Colors.red)),
+              ),
+            if (_lunchMissing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OutlinedButton.icon(
+                  onPressed: _addLunch,
+                  icon: const Icon(Icons.restaurant_outlined),
+                  label: const Text('Inserisci pausa pranzo'),
+                ),
               ),
             SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _save, child: const Text('Aggiungi'))),
           ],

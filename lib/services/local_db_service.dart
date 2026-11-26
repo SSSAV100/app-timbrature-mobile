@@ -29,7 +29,7 @@ class LocalDbService {
     final path = join(await getDatabasesPath(), 'timbrature_offline.db');
     return openDatabase(
       path,
-      version: 10,
+      version: 11,
       onCreate: (db, version) async {
         await _createPunchesTable(db);
         await _createTimeEntriesTable(db);
@@ -76,6 +76,10 @@ class LocalDbService {
           await db.execute('ALTER TABLE pending_time_entries ADD COLUMN start_time TEXT');
           await db.execute('ALTER TABLE pending_time_entries ADD COLUMN end_time TEXT');
         }
+        if (oldVersion < 11) {
+          // Mattino / pomeriggio scelto dal dipendente (26.11.2026).
+          await db.execute('ALTER TABLE pending_time_entries ADD COLUMN day_part TEXT');
+        }
       },
     );
   }
@@ -108,6 +112,7 @@ class LocalDbService {
         note TEXT,
         start_time TEXT,
         end_time TEXT,
+        day_part TEXT,
         latitude REAL,
         longitude REAL,
         status TEXT NOT NULL,
@@ -171,6 +176,20 @@ class LocalDbService {
   }
 
   // --- Azioni sugli interventi Service ---
+
+  /// Azioni dei tipi indicati con la data [day] ("yyyy-MM-dd") nel payload,
+  /// inviate o in coda, in ordine di inserimento (ore Service e pause pranzo
+  /// della giornata, vedi DayPlan).
+  Future<List<ServiceAction>> getServiceActionsOfKinds(List<ServiceActionKind> kinds, String day) async {
+    final db = await database;
+    final rows = await db.query(
+      'pending_service_actions',
+      where: 'kind IN (${List.filled(kinds.length, '?').join(',')})',
+      whereArgs: kinds.map((k) => k.name).toList(),
+      orderBy: 'created_at',
+    );
+    return rows.map(ServiceAction.fromDbMap).where((a) => a.payload['date'] == day).toList();
+  }
 
   /// Ore stipendio Service con la data indicata (inviate o in coda), per il
   /// riepilogo "Ore inserite oggi" della home.

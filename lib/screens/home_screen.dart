@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../core/config.dart';
+import '../core/day_parts.dart';
 import '../core/local_files.dart';
 import '../core/theme.dart';
 import '../models/app_user.dart';
@@ -128,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadCurrentUser() async {
     try {
       final user = await BcApiService.instance.fetchCurrentUser();
+      DayRules.current = DayRules.parse(user.dayRules) ?? const DayRules();
       setState(() {
         _currentUser = user;
         _userError = null;

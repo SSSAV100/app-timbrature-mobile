@@ -13,11 +13,15 @@ class AppUser {
   /// (flag "Tecnico Service" sulla scheda dipendente).
   final Set<String> modules;
 
+  /// Limiti della giornata dalla Setup (null = valori predefiniti).
+  final String? dayRules;
+
   const AppUser({
     required this.employeeId,
     required this.fullName,
     required this.roles,
     this.modules = const {'progetti'},
+    this.dayRules,
   });
 
   bool get hasServiceModule => modules.contains('service');
@@ -49,6 +53,7 @@ class AppUser {
       fullName: json['fullName'] as String? ?? '',
       roles: rawRoles,
       modules: rawModules,
+      dayRules: json['dayRules'] as String?,
     );
   }
 }

@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/local_files.dart';
 import '../core/service_report_pdf.dart';
+import '../core/day_parts.dart';
 import '../core/theme.dart';
 import '../core/work_time.dart';
 import '../models/service_action.dart';
@@ -51,6 +52,7 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
   TimeOfDay? _end;
   bool _serviceEdited = false;
   bool _registerHours = true;
+  late DayPart _part = DayRules.current.suggestedPart(DateTime.now());
   List<WorkType> _workTypes = [];
   WorkType? _workType;
   DateTime? _startedAt;
@@ -171,6 +173,21 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
         _snack('Le ore Service devono essere un numero (0 se non si fatturano).');
         return;
       }
+      // Mattino / pausa / pomeriggio su tutta la giornata (progetti e Service).
+      final plan = await DayPlan.load(DateTime.now());
+      var lunchMissing = false;
+      final dayError = plan.check(_part, _start!, _end!, onLunchMissing: () => lunchMissing = true);
+      if (dayError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(dayError),
+          duration: const Duration(seconds: 8),
+          action: lunchMissing
+              ? SnackBarAction(label: 'Pausa pranzo', onPressed: () => LunchBreakSheet.open(context, DateTime.now()))
+              : null,
+        ));
+        return;
+      }
     }
 
     setState(() => _isSaving = true);
@@ -187,6 +204,7 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
           'hoursSalary': hoursSalary,
           'startTime': WorkTime.toBc(_start!),
           'endTime': WorkTime.toBc(_end!),
+          'dayPart': _part.name,
         };
         await _queue(ServiceActionKind.hours, hoursPayload);
         pdfActions.add(ServiceAction(
@@ -288,6 +306,8 @@ class _ServiceFinishScreenState extends State<ServiceFinishScreen> {
                   .toList(),
               onChanged: (t) => setState(() => _workType = t),
             ),
+            const SizedBox(height: 8),
+            DayPartSelector(value: _part, onChanged: (p) => setState(() => _part = p)),
             const SizedBox(height: 8),
             TimeRangeFields(
               start: _start,

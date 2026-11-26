@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/day_parts.dart';
 import '../core/theme.dart';
 import '../core/work_time.dart';
 import '../models/project.dart';
@@ -28,6 +29,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
   DateTime _selectedDate = DateTime.now();
   List<Project> _projects = [];
   List<TimeEntry> _entries = [];
+  DaySlot? _lunch; // pausa pranzo del giorno (inserita da questo telefono)
   List<ServiceAction> _pendingReports = [];
 
   /// Voci ore che hanno già un bollettino (inviato o in coda).
@@ -69,6 +71,7 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
         _pendingReports = results[2] as List<ServiceAction>;
         _reportedEntryIds = results[3] as Set<String>;
       });
+      await _loadLunch();
     } catch (_) {
       setState(() {
         _loadError = 'Impossibile aggiornare i dati (verifica la connessione).';
@@ -117,7 +120,6 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
       builder: (_) => _AddTimeEntrySheet(
         projects: _projects,
         date: _selectedDate,
-        existingEntries: _entries,
       ),
     );
 
@@ -128,6 +130,15 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
     await LocalDbService.instance.saveTimeEntry(result.withPosition(position?.latitude, position?.longitude));
     await _loadEverything();
     SyncService.instance.syncAll().then((_) => mounted ? _loadEverything() : null);
+  }
+
+  Future<void> _loadLunch() async {
+    final plan = await DayPlan.load(_selectedDate);
+    if (mounted) setState(() => _lunch = plan.lunch);
+  }
+
+  Future<void> _editLunch() async {
+    if (await LunchBreakSheet.open(context, _selectedDate)) await _loadLunch();
   }
 
   Future<Set<String>> _loadReportedEntryIds() async {
@@ -201,6 +212,8 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
             ),
             const SizedBox(height: 12),
             _buildSummaryCard(),
+            const SizedBox(height: 10),
+            _buildLunchRow(),
             const SizedBox(height: 16),
             if (_loadError != null) ...[
               Text(_loadError!, style: const TextStyle(fontSize: 12, color: Colors.orange)),
@@ -300,6 +313,41 @@ class _OreProgettiScreenState extends State<OreProgettiScreen> {
     );
   }
 
+  /// Pausa pranzo del giorno: obbligatoria con ore sia di mattino sia di
+  /// pomeriggio, registrata in BC (registro "Ore mattino/pomeriggio").
+  Widget _buildLunchRow() {
+    final lunch = _lunch;
+    return InkWell(
+      onTap: _editLunch,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border, width: 0.6),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.restaurant_outlined, size: 20, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            const Expanded(child: Text('Pausa pranzo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+            Text(
+              lunch == null ? 'Aggiungi' : '${WorkTime.format(lunch.start)}–${WorkTime.format(lunch.end)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: lunch == null ? AppColors.primary : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 }
@@ -309,10 +357,7 @@ class _AddTimeEntrySheet extends StatefulWidget {
   final List<Project> projects;
   final DateTime date;
 
-  /// Righe già inserite nel giorno, per non sovrapporre gli orari.
-  final List<TimeEntry> existingEntries;
-
-  const _AddTimeEntrySheet({required this.projects, required this.date, this.existingEntries = const []});
+  const _AddTimeEntrySheet({required this.projects, required this.date});
 
   @override
   State<_AddTimeEntrySheet> createState() => _AddTimeEntrySheetState();
@@ -327,6 +372,9 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
   final _uuid = const Uuid();
   TimeOfDay? _start;
   TimeOfDay? _end;
+  late DayPart _part = DayRules.current.suggestedPart(widget.date);
+  // Mostra "Inserisci pausa pranzo" quando manca solo quella.
+  bool _lunchMissing = false;
   final _noteController = TextEditingController();
 
   Project? _selectedProject;
@@ -351,7 +399,16 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _addLunch() async {
+    if (await LunchBreakSheet.open(context, widget.date)) {
+      setState(() {
+        _lunchMissing = false;
+        _error = null;
+      });
+    }
+  }
+
+  Future<void> _save() async {
     // L'attività è obbligatoria: la registrazione sul registro commesse di
     // BC richiede il "Job Task No.".
     if (_selectedTask == null) {
@@ -367,14 +424,17 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
       _showError('Indica l\'orario Dalle e Alle (la fine dopo l\'inizio).');
       return;
     }
-    for (final other in widget.existingEntries) {
-      final oStart = WorkTime.parse(other.startTime);
-      final oEnd = WorkTime.parse(other.endTime);
-      if (oStart != null && oEnd != null && WorkTime.overlaps(_start!, _end!, oStart, oEnd)) {
-        _showError('Si sovrappone alla riga ${WorkTime.format(oStart)}-${WorkTime.format(oEnd)}.');
-        return;
-      }
+    // Mattino / pausa / pomeriggio: limiti, sovrapposizioni e pausa pranzo
+    // su tutta la giornata (progetti e Service).
+    final plan = await DayPlan.load(widget.date);
+    var lunchMissing = false;
+    final dayError = plan.check(_part, _start!, _end!, onLunchMissing: () => lunchMissing = true);
+    if (dayError != null) {
+      setState(() => _lunchMissing = lunchMissing);
+      _showError(dayError);
+      return;
     }
+    if (!mounted) return;
 
     final entry = TimeEntry(
       localId: _uuid.v4(),
@@ -384,6 +444,7 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
       hoursWorked: hoursWorked,
       startTime: WorkTime.format(_start!),
       endTime: WorkTime.format(_end!),
+      dayPart: _part.name,
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       status: SyncStatus.pending,
     );
@@ -437,7 +498,8 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
               onChanged: (t) => setState(() => _selectedTask = t),
             ),
             const SizedBox(height: 12),
-
+            DayPartSelector(value: _part, onChanged: (p) => setState(() => _part = p)),
+            const SizedBox(height: 12),
             TimeRangeFields(
               start: _start,
               end: _end,
@@ -455,6 +517,15 @@ class _AddTimeEntrySheetState extends State<_AddTimeEntrySheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(_error!, style: const TextStyle(fontSize: 13, color: Colors.red)),
+              ),
+            if (_lunchMissing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OutlinedButton.icon(
+                  onPressed: _addLunch,
+                  icon: const Icon(Icons.restaurant_outlined),
+                  label: const Text('Inserisci pausa pranzo'),
+                ),
               ),
             SizedBox(
               width: double.infinity,

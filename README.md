@@ -584,3 +584,13 @@ Nell'ordine suggerito dalla roadmap della specifica funzionale:
 9. Bollettino: materiali da vero elenco articoli BC (non testo libero),
    allegato generico, e generazione automatica della fattura
 10. Notifiche push (Firebase)
+
+### Mattino / pausa pranzo / pomeriggio (26.11.2026)
+
+- `POST /timeEntries` e `POST /serviceHours`: campo `dayPart` = `mattino` | `pomeriggio`.
+- `POST /lunchBreaks`: `{date, startTime, endTime}` (più `employeeId` dal server di login). Una per giorno:
+  la nuova sostituisce la precedente.
+- `GET /me`: `dayRules` = "fine mattino|ore max mattino|pausa dalle|pausa entro|pausa min|pomeriggio
+  dalle|fine pomeriggio|ore max pomeriggio" (es. "12:30|5.5|12:00|14:00|1|13:00|23:59|5.5").
+- Controlli bloccanti uguali in app (`lib/core/day_parts.dart`) e in BC (`SS Work Time Mgt`).
+

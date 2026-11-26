@@ -15,6 +15,8 @@ enum ServiceActionKind {
   projectReport, // POST /projectReports
   projectMaterial, // POST /projectReportMaterials
   projectAttachment, // POST /projectAttachments (file letto da filePath)
+  // Pausa pranzo del giorno (26.11.2026): stessa coda, orderNo vuoto.
+  lunchBreak, // POST /lunchBreaks
 }
 
 /// Un'azione del tecnico su un intervento, salvata prima in locale e inviata
@@ -66,11 +68,12 @@ class ServiceAction {
             _ => 'Da riprogrammare',
           },
         ServiceActionKind.hours =>
-          'Ore${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
+          'Ore${payload['dayPart'] == null ? '' : ' ${payload['dayPart']}'}${_range()}: ${payload['hoursService']} h Service, ${payload['hoursSalary']} h stipendio (${payload['workTypeCode']})',
         ServiceActionKind.material => 'Materiale: ${MaterialSheet.label(payload)}',
         ServiceActionKind.attachment || ServiceActionKind.projectAttachment => 'Allegato: ${payload['fileName']}',
         ServiceActionKind.projectReport => 'Bollettino ${payload['date']}',
         ServiceActionKind.projectMaterial => 'Materiale: ${MaterialSheet.label(payload)}',
+        ServiceActionKind.lunchBreak => 'Pausa pranzo${_range()}',
       };
 
   // " 07:00–12:00" dagli orari "HH:mm:ss" del payload, se presenti.

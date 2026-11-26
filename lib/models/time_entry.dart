@@ -24,6 +24,7 @@ class TimeEntry {
   final double? hoursBillable; // null per i progetti Standard: coincide con hoursWorked
   final String? startTime; // "HH:mm", orario Dalle (commissione paritetica)
   final String? endTime; // "HH:mm", orario Alle
+  final String? dayPart; // "mattino" / "pomeriggio" (26.11.2026); null = righe precedenti
   final double? latitude; // punto GPS al salvataggio, se disponibile
   final double? longitude;
   final String? note;
@@ -40,6 +41,7 @@ class TimeEntry {
     this.note,
     this.startTime,
     this.endTime,
+    this.dayPart,
     this.latitude,
     this.longitude,
     this.status = SyncStatus.pending,
@@ -66,6 +68,7 @@ class TimeEntry {
         note: note,
         startTime: startTime,
         endTime: endTime,
+        dayPart: dayPart,
         latitude: lat,
         longitude: lng,
         status: status,
@@ -83,6 +86,7 @@ class TimeEntry {
       if (note != null && note!.isNotEmpty) 'note': note,
       if (startTime != null) 'startTime': '$startTime:00',
       if (endTime != null) 'endTime': '$endTime:00',
+      if (dayPart != null) 'dayPart': dayPart,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
     };
@@ -99,6 +103,7 @@ class TimeEntry {
       'note': note,
       'start_time': startTime,
       'end_time': endTime,
+      'day_part': dayPart,
       'latitude': latitude,
       'longitude': longitude,
       'status': status.name,
@@ -117,6 +122,7 @@ class TimeEntry {
       note: map['note'] as String?,
       startTime: map['start_time'] as String?,
       endTime: map['end_time'] as String?,
+      dayPart: map['day_part'] as String?,
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
       status: SyncStatus.values.byName(map['status'] as String),

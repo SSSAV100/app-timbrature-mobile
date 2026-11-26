@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import '../models/service_action.dart';
 import 'bc_api_service.dart';
 import 'local_db_service.dart';
 
@@ -25,6 +26,9 @@ class SyncService {
       if (!isOnline) return;
 
       await _syncPendingPunches();
+      // Pause pranzo prima delle ore: BC rifiuta le ore del pomeriggio se
+      // c'è già il mattino e manca la pausa.
+      await _syncPendingServiceActions(lunchOnly: true);
       await _syncPendingTimeEntries();
       await _syncPendingAssenze();
       await _syncPendingNoteSpese();
@@ -90,10 +94,11 @@ class SyncService {
   /// Azioni sugli interventi, nell'ordine in cui sono state fatte. Se una
   /// fallisce, le successive dello stesso intervento aspettano il prossimo
   /// giro (es. la chiusura non parte prima delle ore rimaste indietro).
-  Future<void> _syncPendingServiceActions() async {
+  Future<void> _syncPendingServiceActions({bool lunchOnly = false}) async {
     final pending = await LocalDbService.instance.getPendingServiceActions();
     final blocked = <String>{};
     for (final action in pending) {
+      if (lunchOnly && action.kind != ServiceActionKind.lunchBreak) continue;
       final key = '${action.orderNo}/${action.itemLineNo}';
       if (blocked.contains(key)) continue;
       try {
